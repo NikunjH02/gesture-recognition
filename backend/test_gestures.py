@@ -37,7 +37,7 @@ def start_sending_gestures():
             gesture_data = generate_random_gesture()
             print(f"Sending gesture: {gesture_data['message']}")
             sio.emit('trigger_notification', gesture_data)
-            time.sleep(5)
+            time.sleep(50)
         except Exception as e:
             print(f"Error: {e}")
             break
@@ -47,7 +47,7 @@ if __name__ == '__main__':
         # Connect with explicit transport
         print('Attempting to connect to server...')
         sio.connect(
-            'http://192.168.171.169:5000',
+            'http://192.168.171.68:5000',
             transports=['websocket'],
             wait_timeout=10
         )

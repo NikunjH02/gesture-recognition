@@ -21,7 +21,11 @@ export default function HistoryPage() {
       const baseUrl = Platform.OS === 'android' ? 'http://192.168.171.169:5000' : 'http://127.0.0.1:5000';
       const response = await fetch(`${baseUrl}/history`);
       const data = await response.json();
-      setHistory(data);
+      // Sort the history data to display latest first
+      const sortedData = [...data].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
+      setHistory(sortedData); 
     } catch (error) {
       console.log('Error fetching history:', error);
     } finally {

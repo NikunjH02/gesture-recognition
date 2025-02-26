@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { socketService, testSocket } from '@/services/socket';
+import HandDiagram from '../components/HandDiagram';
 
 export default function MainPage() {
   const [currentValues, setCurrentValues] = useState<number[]>([0, 0, 0, 0, 0]);
@@ -39,44 +40,48 @@ export default function MainPage() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.welcomeBanner}>
-          <Text style={styles.welcomeTitle}>Welcome to Sign Language Detection</Text>
-          <Text style={styles.welcomeSubtitle}>Please use our system to learn and practice sign language.</Text>
-        </View>
-
-        <View style={styles.detectionInfo}>
-          <Text style={styles.detectionTitle}>Current Values:</Text>
-          <View style={styles.valuesContainer}>
-            {currentValues.map((value, index) => (
-              <View key={index} style={styles.valueItem}>
-                <Text style={styles.valueLabel}>Value {index + 1}</Text>
-                <Text style={styles.valueText}>{value}</Text>
-              </View>
-            ))}
+      <ScrollView contentContainerStyle={styles.scrollContainer}>
+        <View style={styles.container}>
+          <View style={styles.welcomeBanner}>
+            <Text style={styles.welcomeTitle}>Welcome to Sign Language Detection</Text>
+            <Text style={styles.welcomeSubtitle}>Please use our system to learn and practice sign language.</Text>
           </View>
-          <Text style={styles.detectionTitle}>Message:</Text>
-          <Text style={styles.detectedGesture}>{currentMessage}</Text>
-        </View>
 
-        <View style={styles.controls}>
-          <TouchableOpacity 
-            style={styles.controlButton}
-            onPress={simulateGesture}
-          >
-            <IconSymbol size={28} name="camera.fill" color="#fff" />
-            <Text style={styles.buttonText}>Simulate Gesture</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.controlButton, styles.secondaryButton]}
-            onPress={handleReset}
-          >
-            <IconSymbol size={28} name="arrow.clockwise" color="#007AFF" />
-            <Text style={[styles.buttonText, styles.secondaryButtonText]}>Reset</Text>
-          </TouchableOpacity>
+          <View style={styles.detectionInfo}>
+            <Text style={styles.detectionTitle}>Current Values:</Text>
+            <View style={styles.valuesContainer}>
+              {currentValues.map((value, index) => (
+                <View key={index} style={styles.valueItem}>
+                  <Text style={styles.valueLabel}>Value {index + 1}</Text>
+                  <Text style={styles.valueText}>{value}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={styles.detectionTitle}>Message:</Text>
+            <Text style={styles.detectedGesture}>{currentMessage}</Text>
+          </View>
+
+          <HandDiagram values={currentValues} />
+
+          <View style={styles.controls}>
+            <TouchableOpacity 
+              style={styles.controlButton}
+              onPress={simulateGesture}
+            >
+              <IconSymbol size={28} name="camera.fill" color="#fff" />
+              <Text style={styles.buttonText}>Simulate Gesture</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.controlButton, styles.secondaryButton]}
+              onPress={handleReset}
+            >
+              <IconSymbol size={28} name="arrow.clockwise" color="#007AFF" />
+              <Text style={[styles.buttonText, styles.secondaryButtonText]}>Reset</Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -86,9 +91,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
+  scrollContainer: {
+    flexGrow: 1,
+    padding: 16,
+  },
   container: {
     flex: 1,
-    padding: 16,
   },
   welcomeBanner: {
     backgroundColor: '#e3f2fd',
@@ -176,5 +184,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#007AFF',
+  },
+  handContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginVertical: 16,
+  },
+  finger: {
+    width: 20,
+    height: 60,
+    borderRadius: 10,
+    backgroundColor: '#007AFF',
+  },
+  fingerOpen: {
+    backgroundColor: '#00FF00',
+  },
+  fingerClosed: {
+    backgroundColor: '#FF0000',
   },
 });
