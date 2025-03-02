@@ -9,7 +9,7 @@ load_dotenv()
 api = os.getenv('API_URL')
 print(api)
 # List of possible gestures for testing
-GESTURES = ['Hello', 'Thank you', 'Goodbye', 'Yes', 'No', 'Please', 'Help']
+GESTURES = ['Need Water💧', 'Need to Use Washroom🚽', 'Need Assistance🆘', 'I am Hungry😋 ', 'Medicine Time💊', 'Go for a walk🚶','Need WheelChair 🧑‍🦼‍➡️']
 
 # Create a Socket.IO client with engineio_logger for debugging
 sio = socketio.Client(logger=True)
@@ -36,13 +36,13 @@ def generate_random_gesture():
     }
 
 def start_sending_gestures():
-    print('Starting to send random gestures every 5 seconds...')
+    print('Starting to send random gestures every x seconds...')
     while True:
         try:
             gesture_data = generate_random_gesture()
             print(f"Sending gesture: {gesture_data['message']}")
             sio.emit('trigger_notification', gesture_data)
-            time.sleep(30)
+            time.sleep(3)
         except Exception as e:
             print(f"Error: {e}")
             break

@@ -84,7 +84,7 @@ export const testSocket = () => {
   const testData = {
     id: Date.now(),
     values: Array.from({ length: 5 }, () => Number(Math.random().toFixed(2))),
-    message: 'Test gesture',
+    message: 'Simulated gesture',
     timestamp: new Date().toISOString()
   };
   socketService.socket.emit('trigger_notification', testData);

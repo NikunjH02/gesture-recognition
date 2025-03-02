@@ -14,42 +14,71 @@ interface FingerProps {
 const THRESHOLD = 0.5; // Threshold for finger bending
 
 const Finger: React.FC<FingerProps> = ({ value, x, y, baseRotation, fingerName, fingerIndex }) => {
-  const isOpen = value > THRESHOLD;
+  const bendAmount = Math.max(0, Math.min(1, value)); // Normalize value between 0-1
+  const isActive = bendAmount > 0.5 && bendAmount < 1.1;
   
-  // Configure different lengths based on which finger and state (open/closed)
+  // Opacity based on activity - active fingers are fully visible, inactive ones are faded
+  const opacity = isActive ? 1 : 0.4;
+  
+  // Configure different lengths based on which finger
   const lengthMultiplier = fingerIndex === 2 ? 1.1 : fingerIndex === 4 ? 0.8 : 1.0;
-  const fingerLength = isOpen ? 45 : 20  ; // Shorter length when closed
+  const fingerLength = 45 * lengthMultiplier;
   
-  // Add gap between palm and finger (moved up by offsetY)
+  // Simple state check
+  const isOpen = bendAmount > THRESHOLD;
+  
+  // Simple color feedback
+  const fingerColor = isOpen ? "#00DD00" : "#FF6666";
+  
+  // Width of finger - simple but adequately thick
+  const fingerWidth = 14 - (fingerIndex * 0.8);
+  
+  // Add gap between palm and finger
   const offsetY = 5;
 
   return (
-    <G>
+    <G opacity={opacity}>
       {/* Finger base */}
       <G
         origin={`${x}, ${y-offsetY}`}
         rotation={baseRotation}
       >
-        <Circle cx={x} cy={y-offsetY} r={6} fill="#E8C298" />
+        <Circle cx={x} cy={y-offsetY} r={fingerWidth * 0.6} fill="#E8C298" />
         
-        {/* Simple finger - just one rectangle with rounded corners */}
+        {/* Full straight finger */}
         <Rect
-          x={x - 6}
+          x={x - fingerWidth/2}
           y={y - fingerLength - offsetY}
-          width={12}
-          height={fingerLength * lengthMultiplier}
-          rx={6}
-          fill={isOpen ? "#00DD00" : "#FF6666"}
+          width={fingerWidth}
+          height={fingerLength}
+          rx={fingerWidth/2}
+          fill="#E8C298"
         />
         
         {/* Fingertip */}
-        <Circle cx={x} cy={y - fingerLength - offsetY} r={6} fill="#E8C298" />
+        <Circle 
+          cx={x} 
+          cy={y - fingerLength - offsetY} 
+          r={fingerWidth * 0.5} 
+          fill="#E8C298" 
+        />
+        
+        {/* Status indicator */}
+        <Circle
+          cx={x}
+          cy={y - fingerLength - offsetY}
+          r={fingerWidth * 0.3}
+          fill={isActive ? fingerColor : "transparent"}
+          stroke={fingerColor}
+          strokeWidth={isActive ? 0 : 1}
+        />
       </G>
       
       {/* Label */}
       <Text
         fill="#333"
-        fontSize="8"
+        fontSize="9"
+        fontWeight="bold"
         textAnchor="middle"
         x={x}
         y={y + 15}
@@ -61,81 +90,87 @@ const Finger: React.FC<FingerProps> = ({ value, x, y, baseRotation, fingerName, 
 };
 
 const HandDiagram = ({ values }: { values: number[] }) => {
+  const fingerNames = ["", "", "", "", ""];
+  
   useEffect(() => {
     console.log('HandDiagram values:', values);
   }, [values]);
 
   return (
     <View style={styles.container}>
-      <Svg height="220" width="180" viewBox="0 0 180 220">
+      <Svg height="240" width="200" viewBox="0 0 200 240">
         <Defs>
-          <LinearGradient id="palmGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <Stop offset="0%" stopColor="#DBAC7A" />
-            <Stop offset="50%" stopColor="#E8C298" />
-            <Stop offset="100%" stopColor="#DBAC7A" />
+          {/* Simple palm gradient */}
+          <LinearGradient id="palmGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <Stop offset="0%" stopColor="#E8C298" />
+            <Stop offset="100%" stopColor="#D0A070" />
           </LinearGradient>
         </Defs>
         
-        {/* Even Smaller Palm */}
+        {/* Simpler palm */}
         <Path 
-          d="M70,130 C67,115 73,100 85,92 C95,85 105,85 115,92 C127,100 133,115 130,130 L127,150 C124,165 100,170 83,160 L70,130 Z" 
-          fill="url(#palmGradient)" 
+  d="M65,130 C60,120 68,105 85,100 C97,95 110,95 123,100 C140,105 148,120 143,130 L140,145 C136,160 103,165 80,155 L65,130 Z" 
+  fill="url(#palmGradient)"
+/>
+        
+        {/* Simple palm line */}
+        <Path 
+          d="M80,120 C95,130 115,130 125,120" 
+          stroke="#C0966A"
+          strokeWidth="1.5"
+          fill="none"
         />
         
-        {/* Thumb */}
+        {/* Fingers - all straight */}
         <Finger 
           value={values[0]} 
           x={75} 
           y={125} 
           baseRotation={-40} 
-          fingerName="" 
+          fingerName={fingerNames[0]} 
           fingerIndex={0} 
         />
         
-        {/* Index */}
         <Finger 
           value={values[1]} 
           x={90} 
-          y={95} 
+          y={101} 
           baseRotation={-10} 
-          fingerName="" 
+          fingerName={fingerNames[1]} 
           fingerIndex={1} 
         />
         
-        {/* Middle */}
         <Finger 
           value={values[2]} 
-          x={100} 
-          y={90} 
+          x={102} 
+          y={97} 
           baseRotation={0} 
-          fingerName="" 
+          fingerName={fingerNames[2]} 
           fingerIndex={2} 
         />
         
-        {/* Ring */}
         <Finger 
           value={values[3]} 
-          x={112} 
-          y={95} 
+          x={116} 
+          y={101} 
           baseRotation={10} 
-          fingerName="" 
+          fingerName={fingerNames[3]} 
           fingerIndex={3} 
         />
         
-        {/* Pinky */}
         <Finger 
           value={values[4]} 
-          x={120} 
-          y={115} 
+          x={130} 
+          y={107} 
           baseRotation={20} 
-          fingerName="" 
+          fingerName={fingerNames[4]} 
           fingerIndex={4} 
         />
         
-        {/* Updated Wrist */}
+        {/* Simple wrist */}
         <Path 
-          d="M80,160 C90,170 110,170 120,160 L125,180 C105,195 95,195 75,180 L80,160 Z" 
-          fill="url(#palmGradient)" 
+          d="M75,160 C90,172 120,172 135,160 L140,180 C115,198 95,198 70,180 L75,160 Z" 
+          fill="url(#palmGradient)"
         />
       </Svg>
     </View>
@@ -150,8 +185,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginVertical: 12,
     backgroundColor: '#FAFAFA',
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 16,
+    padding: 15,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
   },
 });
 
