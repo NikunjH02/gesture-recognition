@@ -88,7 +88,7 @@ const HandDiagram = ({ values }: { values: number[] }) => {
           x={75} 
           y={125} 
           baseRotation={-40} 
-          fingerName="Thumb" 
+          fingerName="" 
           fingerIndex={0} 
         />
         
@@ -98,7 +98,7 @@ const HandDiagram = ({ values }: { values: number[] }) => {
           x={90} 
           y={95} 
           baseRotation={-10} 
-          fingerName="Index" 
+          fingerName="" 
           fingerIndex={1} 
         />
         
@@ -108,7 +108,7 @@ const HandDiagram = ({ values }: { values: number[] }) => {
           x={100} 
           y={90} 
           baseRotation={0} 
-          fingerName="Middle" 
+          fingerName="" 
           fingerIndex={2} 
         />
         
@@ -118,7 +118,7 @@ const HandDiagram = ({ values }: { values: number[] }) => {
           x={112} 
           y={95} 
           baseRotation={10} 
-          fingerName="Ring" 
+          fingerName="" 
           fingerIndex={3} 
         />
         
@@ -128,7 +128,7 @@ const HandDiagram = ({ values }: { values: number[] }) => {
           x={120} 
           y={115} 
           baseRotation={20} 
-          fingerName="Pinky" 
+          fingerName="" 
           fingerIndex={4} 
         />
         

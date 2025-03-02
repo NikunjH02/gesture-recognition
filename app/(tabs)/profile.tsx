@@ -1,18 +1,18 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 
 export default function ProfilePage() {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentContainer}>
         <View style={styles.profileHeader}>
           <Image
             source={require('@/assets/images/avatar-placeholder.png')}
             style={styles.avatar}
           />
           <Text style={styles.userName}>John Doe</Text>
-          <Text style={styles.userEmail}>john.doe@example.com</Text>
+          <Text style={styles.userEmail}>@gmail.com</Text>
         </View>
 
         <View style={styles.statsContainer}>
@@ -54,7 +54,7 @@ export default function ProfilePage() {
             <Text style={[styles.menuText, styles.logoutText]}>Log Out</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -64,9 +64,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  container: {
+  scrollView: {
     flex: 1,
+  },
+  contentContainer: {
     padding: 16,
+    paddingBottom: 32,
   },
   profileHeader: {
     alignItems: 'center',

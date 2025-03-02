@@ -2,20 +2,17 @@ import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { showNotification } from '@/config/notifications';
+import { API_URL } from '@/src/constants/api';
 
-let api = "http://192.168.171.68:5000"
+let api = "http://192.168.70.169:5000"
 
 class SocketService {
   socket: Socket;
   private static instance: SocketService;
 
   constructor() {
-    // Use 10.0.2.2 for Android emulator to connect to localhost
-    const serverUrl = api;
-    // Platform.OS === ;
-    // 'android' 
-    //   ? api
-    //   : 'http://127.0.0.1:5000';
+    const serverUrl = API_URL;
+    console.log(serverUrl);
 
     this.socket = io(serverUrl, {
       transports: ['websocket'],
@@ -31,6 +28,7 @@ class SocketService {
     });
 
     this.socket.on('connect_error', (error) => {
+      console.log(api);
       console.log('Socket connection error:', error);
     });
 

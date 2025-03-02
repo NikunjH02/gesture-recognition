@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, SafeAreaView, Platform } from 'react-native';
-
-let api = "http://192.168.171.68:5000"
+import { API_URL } from '@/src/constants/api';
 
 interface HistoryItem {
   id: number;
@@ -20,7 +19,7 @@ export default function HistoryPage() {
 
   const fetchHistory = async () => {
     try {
-      const baseUrl = Platform.OS === 'android' ? api : 'http://127.0.0.1:5000';
+      const baseUrl = Platform.OS === 'android' ? API_URL : API_URL;
       const response = await fetch(`${baseUrl}/history`);
       const data = await response.json();
       // Sort the history data to display latest first

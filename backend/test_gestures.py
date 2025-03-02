@@ -1,10 +1,13 @@
+import os
 import socketio
 import time
 import random
 from datetime import datetime
+from dotenv import load_dotenv
 
-api = "http://192.168.171.68:5000"
-
+load_dotenv()
+api = os.getenv('API_URL')
+print(api)
 # List of possible gestures for testing
 GESTURES = ['Hello', 'Thank you', 'Goodbye', 'Yes', 'No', 'Please', 'Help']
 
@@ -46,7 +49,6 @@ def start_sending_gestures():
 
 if __name__ == '__main__':
     try:
-        # Connect with explicit transport
         print('Attempting to connect to server...')
         sio.connect(
             api,

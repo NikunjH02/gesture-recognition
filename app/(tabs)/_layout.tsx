@@ -34,6 +34,7 @@ export default function TabLayout() {
           title: 'Home',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
           headerTitle: 'Sign Language Detection',
+          headerShown: false, // Hide header for home screen
         }}
       />
       <Tabs.Screen
@@ -42,6 +43,7 @@ export default function TabLayout() {
           title: 'Detect',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="hand.raised.fill" color={color} />,
           headerTitle: 'Gesture Detection',
+          headerShown: false, // Hide header for detection screen
         }}
       />
       <Tabs.Screen
@@ -50,6 +52,7 @@ export default function TabLayout() {
           title: 'History',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="clock.fill" color={color} />,
           headerTitle: 'Detection History',
+          headerShown: false,
         }}
       />
       <Tabs.Screen
@@ -58,6 +61,7 @@ export default function TabLayout() {
           title: 'Profile',
           tabBarIcon: ({ color }) => <IconSymbol size={28} name="person.fill" color={color} />,
           headerTitle: 'User Profile',
+          headerShown: false,
         }}
       />
     </Tabs>

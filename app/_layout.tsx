@@ -44,8 +44,14 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="/(tabs)" options={{ headerShown: false }} />
+      <Stack screenOptions={{ title: 'Gesture Recognition' }}>
+        <Stack.Screen 
+          name="/(tabs)" 
+          options={{ 
+            headerShown: true,
+            title: 'Gesture Recognition'
+          }} 
+        />
         <Stack.Screen name="not-found" />
       </Stack>
       <StatusBar style="auto" />
