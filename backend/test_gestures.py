@@ -3,6 +3,8 @@ import time
 import random
 from datetime import datetime
 
+api = "http://192.168.171.68:5000"
+
 # List of possible gestures for testing
 GESTURES = ['Hello', 'Thank you', 'Goodbye', 'Yes', 'No', 'Please', 'Help']
 
@@ -37,7 +39,7 @@ def start_sending_gestures():
             gesture_data = generate_random_gesture()
             print(f"Sending gesture: {gesture_data['message']}")
             sio.emit('trigger_notification', gesture_data)
-            time.sleep(50)
+            time.sleep(30)
         except Exception as e:
             print(f"Error: {e}")
             break
@@ -47,7 +49,7 @@ if __name__ == '__main__':
         # Connect with explicit transport
         print('Attempting to connect to server...')
         sio.connect(
-            'http://192.168.171.68:5000',
+            api,
             transports=['websocket'],
             wait_timeout=10
         )
