@@ -21,6 +21,9 @@ export default function HistoryPage() {
     try {
       const baseUrl = Platform.OS === 'android' ? API_URL : API_URL;
       const response = await fetch(`${baseUrl}/history`);
+      
+      console.log('Response:', response);
+
       const data = await response.json();
       // Sort the history data to display latest first
       const sortedData = [...data].sort((a, b) => 

@@ -13,7 +13,7 @@ export default function MainPage() {
       try {
         socketService.connect();
         
-        socketService.socket.on('notification', (data) => {
+        socketService.socket.on('adc_data', (data) => {
           setCurrentValues(data.values);
           setCurrentMessage(data.message);
         });

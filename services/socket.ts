@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 import { showNotification } from '@/config/notifications';
 import { API_URL } from '@/src/constants/api';
 
-let api = "http://192.168.70.169:5000"
+let api = " http://192.168.238.120:5000"
 
 class SocketService {
   socket: Socket;
