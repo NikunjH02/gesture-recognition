@@ -171,6 +171,8 @@ def handle_adc_data(data):
     input_features = []
     for ch in data["channels"]:
         input_features.append(ch["raw"])
+    
+    for ch in data["channels"]:
         input_features.append(ch["voltage"])
     
     # Ensure we have the correct number of features
@@ -201,7 +203,7 @@ def handle_adc_data(data):
     # emit('classified_data', {"timestamp": data["timestamp"], "predictions": predictions}, broadcast=True)
     # Prepare data for frontend
     response_data = {
-        "values": input_features[::2],  # Assuming the first 5 features are relevant
+        "values": input_features[:5],  # Only the first 5 values from input_features
         "message": str(predictions.get("random_forest.pkl", "No gesture detected"))
     }
 

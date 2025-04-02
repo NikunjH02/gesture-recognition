@@ -14,7 +14,7 @@ export default function MainPage() {
         socketService.connect();
         
         socketService.socket.on('adc_data', (data) => {
-          setCurrentValues(data.values);
+            setCurrentValues([...data.values].reverse());
           setCurrentMessage(data.message);
         });
       } catch (error) {

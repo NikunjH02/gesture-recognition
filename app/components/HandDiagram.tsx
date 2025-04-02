@@ -14,8 +14,8 @@ interface FingerProps {
 const THRESHOLD = 0.5; // Threshold for finger bending
 
 const Finger: React.FC<FingerProps> = ({ value, x, y, baseRotation, fingerName, fingerIndex }) => {
-  const bendAmount = Math.max(0, Math.min(1, value)); // Normalize value between 0-1
-  const isActive = bendAmount > 0.5 && bendAmount < 1.1;
+  const bendAmount = Math.max(0, value); // Normalize value between 0-1
+  const isActive = bendAmount < 50000;
   
   // Opacity based on activity - active fingers are fully visible, inactive ones are faded
   const opacity = isActive ? 1 : 0.4;
