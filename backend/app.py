@@ -1,72 +1,7 @@
-# from flask import Flask, jsonify
-# from flask_socketio import SocketIO, emit
-# from flask_cors import CORS
-# from datetime import datetime, timedelta
-
-# app = Flask(__name__)
-# # Enable CORS for all routes
-# CORS(app)
-
-# # Configure SocketIO with less restrictive CORS
-# socketio = SocketIO(app, 
-#     cors_allowed_origins="*",
-#     async_mode='threading'
-# )
-
-# # Sample history data
-# history = [
-#     {
-#         "id": 1,
-#         "values": [0.8, 0.2, 0.6, 0.9, 0.3],
-#         "message": "Hello gesture detected",
-#         "timestamp": (datetime.now() - timedelta(minutes=5)).isoformat()
-#     },
-#     {
-#         "id": 2,
-#         "values": [0.4, 0.7, 0.2, 0.5, 0.8],
-#         "message": "Thank you gesture detected",
-#         "timestamp": (datetime.now() - timedelta(minutes=2)).isoformat()
-#     },
-#     {
-#         "id": 3,
-#         "values": [0.9, 0.3, 0.7, 0.4, 0.6],
-#         "message": "Goodbye gesture detected",
-#         "timestamp": datetime.now().isoformat()
-#     }
-# ]
-
-# @app.route('/history', methods=['GET'])
-# def get_history():
-#     return jsonify(history)
-
-# @socketio.on('connect')
-# def handle_connect():
-#     print('Client connected')
-
-# @socketio.on('disconnect')
-# def handle_disconnect():
-#     print('Client disconnected')
-
-# @socketio.on('trigger_notification')
-# def handle_trigger_notification(data):
-#     history.append(data)
-#     emit('notification', data, broadcast=True)
-
-# @app.after_request
-# def after_request(response):
-#     response.headers.add('Access-Control-Allow-Origin', 'http://localhost:8081')
-#     response.headers.add('Access-Control-Allow-Headers', 'Content-Type')
-#     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,OPTIONS')
-#     return response
-
-# if __name__ == '__main__':
-#     socketio.run(app, host='0.0.0.0', port=5000, debug=True, allow_unsafe_werkzeug=True)
-
-
-
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from flask_socketio import SocketIO, emit
 from flask_cors import CORS
+from flask_bcrypt import Bcrypt
 import pandas as pd
 from pymongo import MongoClient
 import pickle
@@ -74,22 +9,62 @@ import numpy as np
 import time
 from dotenv import load_dotenv
 import os
+import uuid
+import re
 
-# Flask & SocketIO setup
-app = Flask(__name__)
-CORS(app)
-socketio = SocketIO(app, cors_allowed_origins="*")
-
-# MongoDB setup
 # Load environment variables
 load_dotenv()
 
+# Initialize Flask app
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev_secret_key')
+CORS(app)
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+bcrypt = Bcrypt(app)
+
 # MongoDB setup
-mongo_url = os.getenv("MONGO_URL", "localhost:27017")
+mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
 client = MongoClient(mongo_url)
 db = client["sensor_data"]
-# adc_collection = db["adc_values"]
 classification_collection = db["classified_results"]
+user_collection = db["users"]
+messages_collection = db["user_messages"]
+
+# Default messages for new users
+DEFAULT_MESSAGES = {
+  "0": "I am hungry",
+  "1": "I am thirsty",
+  "2": "I need water",
+  "3": "I want to eat",
+  "4": "I need help",
+  "5": "I am tired",
+  "6": "I am feeling sick",
+  "7": "I am in pain",
+  "8": "Call a doctor",
+  "9": "I need medicine",
+  "10": "Please wait",
+  "11": "I am okay",
+  "12": "Thank you",
+  "13": "Sorry",
+  "14": "Yes",
+  "15": "No",
+  "16": "Where is the bathroom?",
+  "17": "I am cold",
+  "18": "I am hot",
+  "19": "Can you help me?",
+  "20": "What is your name?",
+  "21": "My name is [Name]",
+  "22": "Nice to meet you",
+  "23": "I don't understand",
+  "24": "Can you repeat that?",
+  "25": "I need to go",
+  "26": "Please come here",
+  "27": "I am lost",
+  "28": "Call my family",
+  "29": "I can't hear",
+  "30": "I use sign language",
+  "31": "I need to rest"
+}
 
 # Load scaler
 with open("scaler.pkl", "rb") as f:
@@ -134,6 +109,116 @@ def classify_data(input_data):
 
     return predictions
 
+
+# Routes for authentication
+@app.route('/signup', methods=['POST'])
+def signup():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    username = data.get('username')
+    device_id = data.get('device_id')
+    
+    # Validation
+    if not email or not password or not username or not device_id:
+        return jsonify({"success": False, "message": "Missing required fields"}), 400
+    
+    if not is_valid_email(email):
+        return jsonify({"success": False, "message": "Invalid email format"}), 400
+    
+    if not is_valid_username(username):
+        return jsonify({"success": False, "message": "Username must be 3-20 characters, alphanumeric"}), 400
+        
+    if not is_valid_password(password):
+        return jsonify({"success": False, "message": "Password must be at least 8 characters"}), 400
+    
+    # Check if user already exists
+    if user_collection.find_one({"email": email}):
+        return jsonify({"success": False, "message": "Email already registered"}), 400
+    
+    if user_collection.find_one({"username": username}):
+        return jsonify({"success": False, "message": "Username already taken"}), 400
+        
+    # Check if device_id is already registered
+    if user_collection.find_one({"device_id": device_id}):
+        return jsonify({"success": False, "message": "Device ID already registered"}), 400
+    
+    # Create new user
+    hashed_password = bcrypt.generate_password_hash(password).decode('utf-8')
+    user_id = str(uuid.uuid4())
+    
+    user = {
+        "user_id": user_id,
+        "email": email,
+        "username": username,
+        "password": hashed_password,
+        "device_id": device_id,
+        "created_at": time.strftime("%Y-%m-%d %H:%M:%S")
+    }
+    
+    user_collection.insert_one(user)
+    
+    # Save default messages for the new user
+    user_messages = {
+        "user_id": user_id,
+        "messages": DEFAULT_MESSAGES
+    }
+    messages_collection.insert_one(user_messages)
+    
+    return jsonify({
+        "success": True, 
+        "message": "User registered successfully",
+        "user_id": user_id,
+        "username": username,
+        "device_id": device_id
+    }), 201
+
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.json
+    email = data.get('email')
+    password = data.get('password')
+    
+    if not email or not password:
+        return jsonify({"success": False, "message": "Missing email or password"}), 400
+    
+    # Find user
+    user = user_collection.find_one({"email": email})
+    if not user:
+        return jsonify({"success": False, "message": "Invalid email or password"}), 401
+    
+    # Verify password
+    if not bcrypt.check_password_hash(user["password"], password):
+        return jsonify({"success": False, "message": "Invalid email or password"}), 401
+    
+    # Create session
+    session['user_id'] = user['user_id']
+    session['username'] = user['username']
+    
+    return jsonify({
+        "success": True,
+        "message": "Login successful",
+        "user_id": user['user_id'],
+        "username": user['username']
+    }), 200
+
+def is_valid_email(email):
+    """Check if email format is valid"""
+    pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    return re.match(pattern, email) is not None
+
+def is_valid_username(username):
+    """Check if username is valid (alphanumeric, 3-20 chars)"""
+    pattern = r'^[a-zA-Z0-9_]{3,20}$'
+    return re.match(pattern, username) is not None
+
+def is_valid_password(password):
+    """Check if password is strong enough"""
+    if len(password) < 8:
+        return False
+    return True
+
+
 # REST API: Fetch stored ADC values
 @app.route('/adc_history', methods=['GET'])
 def get_adc_history():
@@ -144,30 +229,79 @@ def get_adc_history():
 
 @app.route('/history', methods=['GET'])
 def get_classified_history():
-    data = list(classification_collection.find({}))
+    user_id = request.args.get('user_id')
+    
+    # Filter by user_id if provided
+    query = {"user_id": user_id} if user_id else {}
+    data = list(classification_collection.find(query))
 
     formatted_data = []
     for entry in data:
         formatted_entry = {
-            "id": str(entry.get("_id", "")),  # Convert ObjectId to string
-            "values": entry.get("features", []),  # Extract 'features' as values
-            "message": str(entry.get("predictions", {}).get("random_forest.pkl", "No prediction")),  # Extract message
-            "timestamp": entry.get("timestamp", "Unknown")  # Ensure timestamp exists
+            "id": str(entry.get("_id", "")),
+            "user_id": entry.get("user_id", ""),
+            "values": entry.get("features", []),
+            "message": str(entry.get("predictions", {}).get("random_forest.pkl", "No prediction")),
+            "timestamp": entry.get("timestamp", "Unknown")
         }
         formatted_data.append(formatted_entry)
 
-    print("Classified Data:", formatted_data)
     return jsonify(formatted_data)
 
-    # data = list(classification_collection.find({}))  
-    # print("Classified data:", data)
-    # return jsonify(data)
+@app.route('/get_messages', methods=['GET'])
+def get_user_messages():
+    user_id = request.args.get('user_id')
+    
+    if not user_id:
+        return jsonify({"success": False, "message": "User ID is required"}), 400
+    
+    user_messages = messages_collection.find_one({"user_id": user_id})
+    
+    if not user_messages:
+        # If no messages found, create default messages for the user
+        user_messages = {
+            "user_id": user_id,
+            "messages": DEFAULT_MESSAGES
+        }
+        messages_collection.insert_one(user_messages)
+    
+    return jsonify({
+        "success": True,
+        "messages": user_messages.get("messages", DEFAULT_MESSAGES)
+    })
+
+@app.route('/update_messages', methods=['POST'])
+def update_user_messages():
+    data = request.json
+    user_id = data.get('user_id')
+    messages = data.get('messages')
+    
+    if not user_id:
+        return jsonify({"success": False, "message": "User ID is required"}), 400
+    
+    if not messages or not isinstance(messages, dict):
+        return jsonify({"success": False, "message": "Valid messages dictionary is required"}), 400
+    
+    # Verify user exists
+    user = user_collection.find_one({"user_id": user_id})
+    if not user:
+        return jsonify({"success": False, "message": "User not found"}), 404
+    
+    # Update or create message entry
+    result = messages_collection.update_one(
+        {"user_id": user_id},
+        {"$set": {"messages": messages}},
+        upsert=True
+    )
+    
+    if result.modified_count > 0 or result.upserted_id:
+        return jsonify({"success": True, "message": "Messages updated successfully"})
+    else:
+        return jsonify({"success": False, "message": "No changes made to messages"}), 400
 
 # WebSocket: Raspberry Pi sends ADC data
 @socketio.on('adc_data')
 def handle_adc_data(data):
-    # print("Received ADC data:", data)
-
     # Extract features
     input_features = []
     for ch in data["channels"]:
@@ -180,32 +314,39 @@ def handle_adc_data(data):
     if len(input_features) != len(feature_columns):
         print(f"Warning: Expected {len(feature_columns)} features, but got {len(input_features)}")
     
-    # Save ADC values in MongoDB
-    adc_entry = {
-        "timestamp": data["timestamp"],
-        "features": input_features
-    }
-    # adc_collection.insert_one(adc_entry)
+    # Get device_id from data
+    device_id = data.get("device_id")
+    user_id = None
+    
+    # Look up user_id based on device_id
+    if device_id:
+        user = user_collection.find_one({"device_id": device_id})
+        if user:
+            user_id = user.get("user_id")
+            print(f"Device {device_id} mapped to user {user_id}")
+        else:
+            print(f"Warning: Device {device_id} not registered to any user")
 
     # Perform classification
-
     predictions = classify_data(input_features)
     print(predictions)
 
-    # Save classified results in MongoDB
+    # Save classified results in MongoDB with device_id and user_id
     classified_entry = {
         "timestamp": data["timestamp"],
         "features": input_features,
-        "predictions": predictions
+        "predictions": predictions,
+        "device_id": device_id,
+        "user_id": user_id
     }
     classification_collection.insert_one(classified_entry)
 
-    # # Send results to frontend  
-    # emit('classified_data', {"timestamp": data["timestamp"], "predictions": predictions}, broadcast=True)
     # Prepare data for frontend
     response_data = {
         "values": input_features[:5],  # Only the first 5 values from input_features
-        "message": str(predictions.get("random_forest.pkl", "No gesture detected"))
+        "message": str(predictions.get("random_forest.pkl", "No gesture detected")),
+        "device_id": device_id,
+        "user_id": user_id
     }
 
     # Send results to frontend
