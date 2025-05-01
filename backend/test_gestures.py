@@ -1,63 +1,81 @@
-import os
-import socketio
+# import asyncio
+# import websockets
+# import json
+# import random
+# import time
+
+# BACKEND_WS_URL = "ws://127.0.0.1:5000/ws"
+
+# async def send_data():
+#     async with websockets.connect(BACKEND_WS_URL) as websocket:
+#         while True:
+#             timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+#             data = {
+#                 "timestamp": timestamp,
+#                 "channels": [
+#                     {"channel": i, "raw": random.randint(0, 65535), "voltage": round(random.uniform(0, 3.3), 3)}
+#                     for i in range(5)
+#                 ]
+#             }
+#             await websocket.send(json.dumps(data))
+#             print("Sent:", data)
+#             await asyncio.sleep(4)  # Simulate 1-second intervals
+
+# asyncio.run(send_data())
+
+
 import time
 import random
-from datetime import datetime
-from dotenv import load_dotenv
+import socketio
+import sys
 
-load_dotenv()
-api = os.getenv('API_URL')
-print(api)
-# List of possible gestures for testing
-GESTURES = ['Need Water💧', 'Need to Use Washroom🚽', 'Need Assistance🆘', 'I am Hungry😋 ', 'Medicine Time💊', 'Go for a walk🚶','Need WheelChair 🧑‍🦼‍➡️']
+# WebSocket URL
+BACKEND_WS_URL = "http://192.168.182.120:5000/"
 
-# Create a Socket.IO client with engineio_logger for debugging
-sio = socketio.Client(logger=True)
+# Create a socketio client
+sio = socketio.Client()
 
+# Connection event handlers
 @sio.event
 def connect():
-    print('Successfully connected to server')
-    start_sending_gestures()
+    print(f"Connected to backend at {BACKEND_WS_URL}")
 
 @sio.event
 def connect_error(data):
-    print(f'Connection error: {data}')
+    print(f"Connection failed: {data}")
+    sys.exit(1)
 
 @sio.event
 def disconnect():
-    print('Disconnected from server')
+    print("Disconnected from backend")
 
-def generate_random_gesture():
-    return {
-        'id': int(time.time() * 1000),
-        'values': [round(random.random(), 2) for _ in range(5)],
-        'message': random.choice(GESTURES),
-        'timestamp': datetime.now().isoformat()
-    }
+# Try to connect to backend
+try:
+    print(f"Attempting to connect to {BACKEND_WS_URL}...")
+    sio.connect(BACKEND_WS_URL)
+except Exception as e:
+    print(f"Connection error: {e}")
+    sys.exit(1)
 
-def start_sending_gestures():
-    print('Starting to send random gestures every x seconds...')
+# Main loop for sending data
+try:
     while True:
+        data = {
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "channels": [
+                {"channel": i, "raw": random.randint(0, 65535), "voltage": round(random.uniform(0, 3.3), 3)}
+                for i in range(5)
+            ]
+        }
         try:
-            gesture_data = generate_random_gesture()
-            print(f"Sending gesture: {gesture_data['message']}")
-            sio.emit('trigger_notification', gesture_data)
-            time.sleep(3)
+            sio.emit("adc_data", data)
+            print(f"Sent data at {data['timestamp']}")
         except Exception as e:
-            print(f"Error: {e}")
-            break
-
-if __name__ == '__main__':
-    try:
-        print('Attempting to connect to server...')
-        sio.connect(
-            api,
-            transports=['websocket'],
-            wait_timeout=10
-        )
-        sio.wait()
-    except KeyboardInterrupt:
-        print('\nStopping gesture simulation...')
-        sio.disconnect()
-    except Exception as e:
-        print(f"Connection error: {e}")
+            print(f"Error sending data: {e}")
+        
+        time.sleep(5)  # Send every 5 seconds
+except KeyboardInterrupt:
+    print("Program interrupted by user")
+finally:
+    print("Disconnecting...")
+    sio.disconnect()
