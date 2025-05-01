@@ -20,7 +20,15 @@ export default function HistoryPage() {
   const fetchHistory = async () => {
     try {
       const baseUrl = Platform.OS === 'android' ? API_URL : API_URL;
-      const response = await fetch(`${baseUrl}/history`);
+      // Ensure the URL has a protocol to make it absolute
+      const basehist = baseUrl.startsWith('http') ? baseUrl + '/history' : 'http://' + baseUrl + '/history';
+      console.log('Base URL:', basehist);
+
+      const response = await fetch(basehist, {
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
       
       console.log('Response:', response);
 

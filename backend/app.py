@@ -85,10 +85,10 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 load_dotenv()
 
 # MongoDB setup
-mongo_url = os.getenv("MONGO_URL", "mongodb://localhost:27017")
+mongo_url = os.getenv("MONGO_URL", "localhost:27017")
 client = MongoClient(mongo_url)
 db = client["sensor_data"]
-adc_collection = db["adc_values"]
+# adc_collection = db["adc_values"]
 classification_collection = db["classified_results"]
 
 # Load scaler
@@ -137,7 +137,8 @@ def classify_data(input_data):
 # REST API: Fetch stored ADC values
 @app.route('/adc_history', methods=['GET'])
 def get_adc_history():
-    data = list(adc_collection.find({}, {"_id": 0})) 
+    # data = list(adc_collection.find({}, {"_id": 0})) 
+    data=[]
     return jsonify(data)
 
 
@@ -184,7 +185,7 @@ def handle_adc_data(data):
         "timestamp": data["timestamp"],
         "features": input_features
     }
-    adc_collection.insert_one(adc_entry)
+    # adc_collection.insert_one(adc_entry)
 
     # Perform classification
 
