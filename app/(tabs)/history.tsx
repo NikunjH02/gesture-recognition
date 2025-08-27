@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, SafeAreaView, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform } from 'react-native';
 import { API_URL } from '@/src/constants/api';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface HistoryItem {
   id: number;
@@ -12,10 +14,36 @@ interface HistoryItem {
 export default function HistoryPage() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [backendMessage, setBackendMessage] = useState<{ [key: string]: string }>({});
+  const { user, token } = useAuth();
 
   useEffect(() => {
     fetchHistory();
+    fetchMessage();
   }, []);
+
+  const fetchMessage = async () => {
+    try {
+      const baseUrl = Platform.OS === 'android' ? API_URL : API_URL;
+      // Ensure the URL has a protocol to make it absolute
+      const messageUrl = baseUrl.startsWith('http') ? baseUrl + '/get_messages?user_id=' + user.user_id : 'http://' + baseUrl + '/get_messages?user_id=' + user.user_id;
+      console.log('Message URL:', messageUrl);
+
+      const response = await fetch(messageUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+
+      const data = await response.json();
+      console.log('Message Response:', data);
+      setBackendMessage(data.messages);
+
+    } catch (error) {
+      console.log('Error fetching message:', error);
+    }
+  };
 
   const fetchHistory = async () => {
     try {
@@ -29,15 +57,15 @@ export default function HistoryPage() {
           'Cache-Control': 'no-cache',
         },
       });
-      
+
       console.log('Response:', response);
 
       const data = await response.json();
       // Sort the history data to display latest first
-      const sortedData = [...data].sort((a, b) => 
+      const sortedData = [...data].sort((a, b) =>
         new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
       );
-      setHistory(sortedData); 
+      setHistory(sortedData);
     } catch (error) {
       console.log('Error fetching history:', error);
     } finally {
@@ -63,14 +91,14 @@ export default function HistoryPage() {
           {history.map((item) => (
             <View key={item.id} style={styles.historyItem}>
               <View style={styles.valuesContainer}>
-                {item.values.map((value, index) => (
+                {item.values.slice(0, 5).map((value, index) => (
                   <View key={index} style={styles.valueItem}>
                     <Text style={styles.valueLabel}>Value {index + 1}</Text>
                     <Text style={styles.valueText}>{value}</Text>
                   </View>
                 ))}
               </View>
-              <Text style={styles.messageText}>{item.message}</Text>
+              <Text style={[styles.messageText, { fontWeight: 'bold', textAlign: 'center' }]}>{backendMessage[item.message]}</Text>
               <Text style={styles.timestampText}>{new Date(item.timestamp).toLocaleString()}</Text>
             </View>
           ))}

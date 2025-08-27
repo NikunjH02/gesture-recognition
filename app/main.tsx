@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity,  ScrollView } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { socketService, testSocket } from '@/services/socket';
-import HandDiagram from './components/HandDiagram';
+import HandDiagram from '../app/components/HandDiagram';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function MainPage() {
   const [currentValues, setCurrentValues] = useState<number[]>([0, 0, 0, 0, 0]);

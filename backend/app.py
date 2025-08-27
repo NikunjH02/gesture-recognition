@@ -30,6 +30,14 @@ classification_collection = db["classified_results"]
 user_collection = db["users"]
 messages_collection = db["user_messages"]
 
+# Socket connection tracking
+# Map socket_id to user_id
+socket_user_map = {}
+# Map user_id to list of socket_ids (user may have multiple connections)
+user_socket_map = {}
+# Map device_id to user_id (for quick lookup)
+device_user_map = {}
+
 # Default messages for new users
 DEFAULT_MESSAGES = {
   "0": "I am hungry",
@@ -118,6 +126,8 @@ def signup():
     password = data.get('password')
     username = data.get('username')
     device_id = data.get('device_id')
+
+    print(email, password, username, device_id)
     
     # Validation
     if not email or not password or not username or not device_id:
@@ -179,6 +189,8 @@ def login():
     email = data.get('email')
     password = data.get('password')
     
+    print(f"Login attempt for email: {email}")
+
     if not email or not password:
         return jsonify({"success": False, "message": "Missing email or password"}), 400
     
@@ -230,10 +242,11 @@ def get_adc_history():
 @app.route('/history', methods=['GET'])
 def get_classified_history():
     user_id = request.args.get('user_id')
+    limit = 20  # Limit to 20 entries max
     
     # Filter by user_id if provided
     query = {"user_id": user_id} if user_id else {}
-    data = list(classification_collection.find(query))
+    data = list(classification_collection.find(query).sort("timestamp", -1).limit(limit))
 
     formatted_data = []
     for entry in data:
@@ -252,11 +265,15 @@ def get_classified_history():
 def get_user_messages():
     user_id = request.args.get('user_id')
     
+    print(f"Fetching messages for user_id: {user_id}")
+
     if not user_id:
         return jsonify({"success": False, "message": "User ID is required"}), 400
     
     user_messages = messages_collection.find_one({"user_id": user_id})
     
+    print(user_messages)
+
     if not user_messages:
         # If no messages found, create default messages for the user
         user_messages = {
@@ -320,12 +337,19 @@ def handle_adc_data(data):
     
     # Look up user_id based on device_id
     if device_id:
-        user = user_collection.find_one({"device_id": device_id})
-        if user:
-            user_id = user.get("user_id")
-            print(f"Device {device_id} mapped to user {user_id}")
+        # First check our fast lookup map
+        if device_id in device_user_map:
+            user_id = device_user_map[device_id]
         else:
-            print(f"Warning: Device {device_id} not registered to any user")
+            # If not found in map, check database
+            user = user_collection.find_one({"device_id": device_id})
+            if user:
+                user_id = user.get("user_id")
+                # Update our lookup map for future requests
+                device_user_map[device_id] = user_id
+                print(f"Device {device_id} mapped to user {user_id}")
+            else:
+                print(f"Warning: Device {device_id} not registered to any user")
 
     # Perform classification
     predictions = classify_data(input_features)
@@ -339,6 +363,9 @@ def handle_adc_data(data):
         "device_id": device_id,
         "user_id": user_id
     }
+
+    print(f"Classified entry: {classified_entry}")
+
     classification_collection.insert_one(classified_entry)
 
     # Prepare data for frontend
@@ -349,17 +376,93 @@ def handle_adc_data(data):
         "user_id": user_id
     }
 
-    # Send results to frontend
-    emit('adc_data', response_data, broadcast=True)
 
-# WebSocket: Frontend Connection
+    if( response_data["message"] == "1" ):
+        response_data["message"] = "4"
+    elif(response_data["message"] == "2" ):
+        response_data["message"] ="2"
+    elif(response_data["message"] == "3" ):
+        response_data["message"] = "1"
+    else:
+        response_data["message"] = "3"
+
+    print(f"Response data: {response_data}")
+
+    print("socket_user_map", socket_user_map)
+    
+    emit('adc_data', response_data , broadcast=True)  # Broadcast to all connected clients
+    # Send results to frontend, ONLY to the connected sockets of this user
+    # if user_id and user_id in user_socket_map:
+    #     for socket_id in user_socket_map[user_id]:
+    #         emit('adc_data', response_data, room=socket_id)
+    #         print(f"Sent adc_data to socket {socket_id} for user {user_id}")
+    # else:
+    #     # Only in development/debugging: fallback to broadcast if user has no active connections
+    #     print(f"No active connections for user {user_id}, data not sent")
+
+# WebSocket connection management
 @socketio.on('connect')
 def handle_connect():
-    print("Frontend connected")
+    sid = request.sid
+    print(f"Client connected: {sid}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    print("Frontend disconnected")
+    sid = request.sid
+    
+    # Clean up socket_user_map
+    if sid in socket_user_map:
+        user_id = socket_user_map[sid]
+        print(f"User {user_id} disconnected from socket {sid}")
+        
+        # Clean up user_socket_map
+        if user_id in user_socket_map:
+            if sid in user_socket_map[user_id]:
+                user_socket_map[user_id].remove(sid)
+            
+            # If user has no more active connections, clean up
+            if not user_socket_map[user_id]:
+                del user_socket_map[user_id]
+        
+        del socket_user_map[sid]
+    else:
+        print(f"Unauthenticated socket disconnected: {sid}")
+
+@socketio.on('authenticate')
+def handle_authenticate(data):
+    sid = request.sid
+    user_id = data.get('user_id')
+    print("authentication " ,sid)
+    if not user_id:
+        print(f"Authentication failed: No user_id provided for {sid}")
+        emit('auth_response', {"success": False, "message": "User ID is required"})
+        return
+    
+    # Verify user exists
+    user = user_collection.find_one({"user_id": user_id})
+    if not user:
+        print(f"Authentication failed: Invalid user_id {user_id}")
+        emit('auth_response', {"success": False, "message": "User not found"})
+        return
+    
+    # Register socket connection to user
+    socket_user_map[sid] = user_id
+    
+    # Add socket id to user's socket list
+    if user_id not in user_socket_map:
+        user_socket_map[user_id] = []
+    user_socket_map[user_id].append(sid)
+    
+    # Update device mapping
+    if "device_id" in user:
+        device_user_map[user["device_id"]] = user_id
+    
+    print(f"Socket {sid} authenticated for user {user_id}")
+    emit('auth_response', {
+        "success": True, 
+        "message": "Authentication successful",
+        "user_id": user_id
+    })
 
 if __name__ == "__main__":
     socketio.run(app, host="0.0.0.0", port=5000, debug=True)

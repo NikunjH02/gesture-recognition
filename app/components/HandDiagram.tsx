@@ -15,7 +15,7 @@ const THRESHOLD = 0.5; // Threshold for finger bending
 
 const Finger: React.FC<FingerProps> = ({ value, x, y, baseRotation, fingerName, fingerIndex }) => {
   const bendAmount = Math.max(0, value); // Normalize value between 0-1
-  const isActive = bendAmount < 50000;
+  const isActive = value > 0;
   
   // Opacity based on activity - active fingers are fully visible, inactive ones are faded
   const opacity = isActive ? 1 : 0.4;
@@ -76,12 +76,12 @@ const Finger: React.FC<FingerProps> = ({ value, x, y, baseRotation, fingerName, 
       
       {/* Label */}
       <Text
-        fill="#333"
         fontSize="9"
         fontWeight="bold"
         textAnchor="middle"
         x={x}
         y={y + 15}
+        fill="#333"
       >
         {fingerName}
       </Text>
@@ -89,15 +89,25 @@ const Finger: React.FC<FingerProps> = ({ value, x, y, baseRotation, fingerName, 
   );
 };
 
-const HandDiagram = ({ values }: { values: number[] }) => {
+type HandDiagramProps = {
+  values: number[];
+  scale?: number;
+};
+
+const HandDiagram = ({ values, scale = 1 }: HandDiagramProps) => {
   const fingerNames = ["", "", "", "", ""];
   
   useEffect(() => {
-    console.log('HandDiagram values:', values);
+    console.log('HandDiagram received values:', values);
   }, [values]);
 
+  const containerStyle = {
+    ...styles.container,
+    transform: [{ scale }]
+  };
+
   return (
-    <View style={styles.container}>
+    <View style={containerStyle}>
       <Svg height="240" width="200" viewBox="0 0 200 240">
         <Defs>
           {/* Simple palm gradient */}
@@ -109,9 +119,9 @@ const HandDiagram = ({ values }: { values: number[] }) => {
         
         {/* Simpler palm */}
         <Path 
-  d="M65,130 C60,120 68,105 85,100 C97,95 110,95 123,100 C140,105 148,120 143,130 L140,145 C136,160 103,165 80,155 L65,130 Z" 
-  fill="url(#palmGradient)"
-/>
+          d="M65,130 C60,120 68,105 85,100 C97,95 110,95 123,100 C140,105 148,120 143,130 L140,145 C136,160 103,165 80,155 L65,130 Z" 
+          fill="url(#palmGradient)"
+        />
         
         {/* Simple palm line */}
         <Path 
@@ -194,5 +204,4 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 });
-
 

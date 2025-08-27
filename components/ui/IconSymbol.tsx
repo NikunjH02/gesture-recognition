@@ -17,6 +17,7 @@ const iconMap: Record<string, string> = {
   'hand.raised.fill': 'hand-left',
   'clock.fill': 'time',
   'person.fill': 'person',
+  'envelope.fill': 'mail',
   // Add more mappings as needed
 };
 

@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, StyleSheet,  TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -40,6 +41,12 @@ export default function LandingPage() {
             style={styles.button} 
             onPress={() => router.push('/profile')}>
             <Text style={styles.buttonText}>Profile</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={styles.button} 
+            onPress={() => router.push('/message')}>
+            <Text style={styles.buttonText}>Edit Messages</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>

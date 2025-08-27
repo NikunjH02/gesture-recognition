@@ -1,12 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity,  ScrollView } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { socketService, testSocket } from '@/services/socket';
 import HandDiagram from '../components/HandDiagram';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useAuth } from '@/contexts/AuthContext';
+import { API_URL } from '@/src/constants/api';
+import { parse } from '@babel/core';
 
 export default function MainPage() {
   const [currentValues, setCurrentValues] = useState<number[]>([0, 0, 0, 0, 0]);
+  const [binaryValues, setBinaryValues] = useState<number[]>([0, 0, 0, 0, 0]);
   const [currentMessage, setCurrentMessage] = useState<string>('No gesture detected');
+  const [backendMessage, setBackendMessage] = useState<{ [key: string]: string }>({});
+  const { user, token } = useAuth();
 
   useEffect(() => {
     const setupSocket = async () => {
@@ -15,7 +22,30 @@ export default function MainPage() {
         
         socketService.socket.on('adc_data', (data) => {
             setCurrentValues([...data.values].reverse());
-          setCurrentMessage(data.message);
+            setCurrentMessage(data.message);
+            
+            let temp = 0 ; 
+            let act_message = parseInt(data.message);
+            // act_message==2 ? temp = 2 : act_message== 1 ? temp = 4 :  act_message== 3 ? temp= 1 : act_message== 4 ? temp = 3 : temp =3 ; 
+
+            // act_message = temp ; 
+            console.log('Received message:', act_message);
+
+            const x = 3 ;
+            // Calculate binary values from message
+            const calculatedBinaryValues = [
+              (( act_message -1 )>> 0) & 1,
+              (( act_message -1 ) >> 1) & 1,
+              (( act_message -1 ) >> 2) & 1, 
+              (( act_message-1 ) >> 3) & 1,
+              (( act_message-1 ) >> 4) & 1
+            ];
+            
+            console.log('Calculated  values:', calculatedBinaryValues);
+            setBinaryValues(calculatedBinaryValues);
+
+
+            
         });
       } catch (error) {
         console.log('Socket setup error:', error);
@@ -23,6 +53,7 @@ export default function MainPage() {
     };
 
     setupSocket();
+    fetchMessage();
 
     return () => {
       socketService.disconnect();
@@ -33,8 +64,36 @@ export default function MainPage() {
     testSocket(); // This will send a test gesture
   };
 
+  const fetchMessage = async () => {
+      try {
+        const baseUrl = API_URL ;
+        // Ensure the URL has a protocol to make it absolute
+        const messageUrl = baseUrl.startsWith('http') ? baseUrl + '/get_messages?user_id=' + user.user_id : 'http://' + baseUrl + '/get_messages?user_id=' + user.user_id;
+        console.log('Message URL:', messageUrl);
+  
+        const response = await fetch(messageUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+  
+        const data = await response.json();
+        console.log('Message Response:', data);
+
+        console.log('Backend Message:', data.messages);
+
+        setBackendMessage(data.messages);
+  
+      } catch (error) {
+        console.log('Error fetching message:', error);
+      }
+    };
+  
+
   const handleReset = () => {
     setCurrentValues([0, 0, 0, 0, 0]);
+    setBinaryValues([0, 0, 0, 0, 0]);
     setCurrentMessage('No gesture detected');
   };
 
@@ -43,7 +102,7 @@ export default function MainPage() {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.container}>
           <View style={styles.welcomeBanner}>
-            <Text style={styles.welcomeTitle}>Welcome to Sign Language Detection</Text>
+            <Text style={styles.welcomeTitle}>Welcome to sign Language Detection</Text>
             <Text style={styles.welcomeSubtitle}>Please use our system to learn and practice sign language.</Text>
           </View>
 
@@ -58,10 +117,12 @@ export default function MainPage() {
               ))}
             </View>
             <Text style={styles.detectionTitle}>Message:</Text>
-            <Text style={styles.detectedGesture}>{currentMessage}</Text>
+            <Text style={styles.detectedGesture}>{backendMessage[ currentMessage-1 ]}</Text>
           </View>
 
-          <HandDiagram values={currentValues} />
+          
+
+          <HandDiagram values={binaryValues} />
 
           <View style={styles.controls}>
             <TouchableOpacity 

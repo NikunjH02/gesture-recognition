@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Slot, Stack, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -9,9 +9,36 @@ import 'react-native-reanimated';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { socketService } from '@/services/socket';
 import { setupNotifications } from '@/config/notifications';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+
+// This function ensures that users are only allowed to access protected routes when authenticated
+function RootLayoutNav() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    // Check if the user is trying to access authenticated routes
+    const inAuthGroup = segments[0] === '(tabs)';
+    
+    // const isAuthenticated = 1 
+
+    if (inAuthGroup && !isAuthenticated) {
+      // Redirect to the login page if they're not authenticated
+      router.replace('/login');
+    } else if (!inAuthGroup && isAuthenticated) {
+      // Redirect to the app if they are authenticated but on auth screens
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, segments, isLoading]);
+
+  return <Slot />;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -44,16 +71,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack screenOptions={{ title: 'Gesture Recognition' }}>
-        <Stack.Screen 
-          name="/(tabs)" 
-          options={{ 
-            headerShown: true,
-            title: 'Gesture Recognition'
-          }} 
-        />
-        <Stack.Screen name="not-found" />
-      </Stack>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
       <StatusBar style="auto" />
     </ThemeProvider>
   );

@@ -3,19 +3,19 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { showNotification } from '@/config/notifications';
 import { API_URL } from '@/src/constants/api';
-
-let api = "http://192.168.24.120:5000"
+import {useAuth } from '@/contexts/AuthContext';
+const {user} = useAuth();
 
 class SocketService {
   socket: Socket;
   private static instance: SocketService;
 
   constructor() {
-    const serverUrl = API_URL;
+    const serverUrl = "http://"+API_URL;
     console.log(serverUrl);
 
     this.socket = io(serverUrl, {
-      transports: ['websocket'],
+      // transports: ['websocket'],
       autoConnect: false
     });
 
@@ -23,22 +23,29 @@ class SocketService {
   }
 
   private setupSocketListeners() {
-    this.socket.on('connect', () => {
-      console.log('Socket connected');
+    this.socket.on('connect', async () => {
+      const { user } = useAuth();
+      
+      console.log('User ID:', user.user_id);
+      
+      if (user.user_id) {
+        this.socket.on('authenticate', { user_id: user.user_id });
+        console.log('Socket connected');
+      }
     });
 
     this.socket.on('connect_error', (error) => {
-      console.log(api);
-      console.log('Socket connection error:', error);
+      console.log(API_URL);
+      console.log('Socket connec tion error:', error);
     });
 
-    this.socket.on('notification', async (data) => {
+    this.socket.on('adc_data', async (data) => {
       console.log('Received notification:', data);
       await this.saveToHistory(data);
       // Show notification when data is received
       await showNotification(
         'New Gesture Detected',
-        `Detected gesture: ${data.message}`
+        // `Detected gesture: ${data.message}`
       );
     });
   }
@@ -80,6 +87,7 @@ class SocketService {
 }
 
 export const socketService = SocketService.getInstance();
+
 export const testSocket = () => {
   const testData = {
     id: Date.now(),

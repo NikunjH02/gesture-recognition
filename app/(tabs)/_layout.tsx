@@ -55,7 +55,18 @@ export default function TabLayout() {
           headerShown: false,
         }}
       />
+    
       <Tabs.Screen
+        name="message"
+        options={{
+          title: 'Message Editor',
+          tabBarIcon: ({ color }) => <IconSymbol size={28} name="envelope.fill" color={color} />,
+          headerTitle: 'Edit message',
+          headerShown: false,
+        }}
+      />
+
+    <Tabs.Screen
         name="profile"
         options={{
           title: 'Profile',
@@ -64,6 +75,7 @@ export default function TabLayout() {
           headerShown: false,
         }}
       />
+
     </Tabs>
   );
 }

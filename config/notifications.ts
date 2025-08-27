@@ -39,6 +39,7 @@ export const setupNotifications = async () => {
 
 export const showNotification = async (title: string, body: string) => {
   try {
+    // console.log('Showing notification:', title, body);
     await Notifications.scheduleNotificationAsync({
       content: {
         title,
