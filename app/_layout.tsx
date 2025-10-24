@@ -26,14 +26,14 @@ function RootLayoutNav() {
     // Check if the user is trying to access authenticated routes
     const inAuthGroup = segments[0] === '(tabs)';
     
-    // const isAuthenticated = 1 
+    // const isAuthenticated = 1 ;   
 
     if (inAuthGroup && !isAuthenticated) {
       // Redirect to the login page if they're not authenticated
       router.replace('/login');
     } else if (!inAuthGroup && isAuthenticated) {
-      // Redirect to the app if they are authenticated but on auth screens
       router.replace('/(tabs)');
+      // Redirect to the app if they are authenticated but on auth screens
     }
   }, [isAuthenticated, segments, isLoading]);
 

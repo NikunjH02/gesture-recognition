@@ -45,6 +45,7 @@ while True:
             for i in range(5)
         ]
     }
+    
     sio.emit("adc_data", data)  # Send data to backend
     print("Sent:", data)
     time.sleep(5)  # Send every second

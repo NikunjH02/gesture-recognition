@@ -1,51 +1,56 @@
 import { io, Socket } from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
 import { showNotification } from '@/config/notifications';
 import { API_URL } from '@/src/constants/api';
-import {useAuth } from '@/contexts/AuthContext';
-const {user} = useAuth();
 
 class SocketService {
   socket: Socket;
   private static instance: SocketService;
+  private userId: string | null = null;
 
   constructor() {
-    const serverUrl = "http://"+API_URL;
-    console.log(serverUrl);
+    const serverUrl = "http://" + API_URL;
+    console.log("Connecting to:", serverUrl);
 
     this.socket = io(serverUrl, {
-      // transports: ['websocket'],
-      autoConnect: false
+     // transports: ['websocket'], // ✅ force WebSocket
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 2000,
     });
 
     this.setupSocketListeners();
   }
 
+  // Set user ID from React component
+  setUserId(userId: string | null) {
+    this.userId = userId;
+  }
+
   private setupSocketListeners() {
-    this.socket.on('connect', async () => {
-      const { user } = useAuth();
-      
-      console.log('User ID:', user.user_id);
-      
-      if (user.user_id) {
-        this.socket.on('authenticate', { user_id: user.user_id });
-        console.log('Socket connected');
+    this.socket.on('connect', () => {
+      console.log('✅ Socket connected');
+
+      if (this.userId) {
+        this.socket.emit('authenticate', { user_id: this.userId }); // ✅ emit, not on
+        console.log('Authenticated with user ID:', this.userId);
       }
     });
 
     this.socket.on('connect_error', (error) => {
-      console.log(API_URL);
-      console.log('Socket connec tion error:', error);
+      console.log("API URL:", API_URL);
+      console.log('❌ Socket connection error:', error.message || error);
     });
 
     this.socket.on('adc_data', async (data) => {
-      console.log('Received notification:', data);
+      console.log('📩 Received ADC data:', data);
       await this.saveToHistory(data);
+
       // Show notification when data is received
       await showNotification(
         'New Gesture Detected',
-        // `Detected gesture: ${data.message}`
+        `Detected gesture: ${data.message}`
       );
     });
   }
@@ -88,6 +93,7 @@ class SocketService {
 
 export const socketService = SocketService.getInstance();
 
+// Function to emit test data
 export const testSocket = () => {
   const testData = {
     id: Date.now(),

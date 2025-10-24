@@ -33,6 +33,7 @@ export default function LoginScreen() {
       // Use the signIn method from AuthContext
       const result = await signIn(email, password);
       
+      
       setIsLoading(false);
 
       if (result.success) {

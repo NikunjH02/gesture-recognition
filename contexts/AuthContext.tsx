@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useContext } from 'react';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { API_URL } from '@/src/constants/api';
+import { ContactSensorFill } from 'expo-sf-symbols/src/sf-symbols/components';
 // import { getDeviceId } from '@/utils/deviceId';
 
 type AuthContextData = {
@@ -61,6 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     userProvidedDeviceId?: string
   ): Promise<{ success: boolean; message?: string }> => {
     try {
+      console.log("email : " , email , "password " , password )
       setIsLoading(true);
       
       // Use user-provided device ID if available, otherwise use the stored one
@@ -76,6 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
       
+      console.log("in call")
       const response = await fetch(`http://${API_URL}/login`, {
         method: 'POST',
         headers: {
@@ -84,11 +87,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ 
           email, 
           password,
-          device_id: deviceIdentifier
+          // device_id: deviceIdentifier
         }),
       });
 
       const data = await response.json();
+      console.log(data);
       
       console.log('Login response:', data);
 
