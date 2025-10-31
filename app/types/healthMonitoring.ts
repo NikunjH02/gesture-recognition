@@ -11,6 +11,11 @@ export interface FingerMetrics {
   tremor_power?: number;
   hysteresis?: number;
   stiff?: boolean;
+  alerts?: Array<{
+    type: 'warning' | 'success' | 'info';
+    message: string;
+    finger?: string;
+  }>;
 }
 
 export interface StrokeData {

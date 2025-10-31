@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, TextInput } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FractureData, DataPoint } from '../types/healthMonitoring';
 
@@ -9,8 +9,8 @@ interface BoneFractureDisplayProps {
 }
 
 const ALERT_THRESHOLD_PERCENT = 10; // 10% deviation threshold
-const CHART_WIDTH = Dimensions.get('window').width - 64;
-const CHART_HEIGHT = 150;
+const CHART_WIDTH = Dimensions.get('window').width - 80; // Increased padding for better alignment
+const CHART_HEIGHT = 120; // Reduced height for better layout
 const MAX_HISTORY_POINTS = 30; // Show last 30 data points
 
 const FINGER_NAMES = ['Thumb', 'Index', 'Middle', 'Ring', 'Pinky'];
@@ -26,6 +26,8 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
   const [selectedFingerIndex, setSelectedFingerIndex] = useState<number>(0);
   const [fingerDataMap, setFingerDataMap] = useState<Map<number, FingerData>>(new Map());
   const [isCalibrating, setIsCalibrating] = useState<boolean>(true);
+  const [baselineInput, setBaselineInput] = useState<string>('');
+  const [isEditingBaseline, setIsEditingBaseline] = useState<boolean>(false);
 
   // Initialize baseline values when component mounts
   useEffect(() => {
@@ -41,6 +43,11 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
       });
       setFingerDataMap(newMap);
       setIsCalibrating(false);
+      
+      // Set initial baseline input to first finger's value
+      if (values[0]) {
+        setBaselineInput(values[0].toString());
+      }
     }
   }, []);
 
@@ -90,7 +97,41 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
     });
     setFingerDataMap(newMap);
     setIsCalibrating(false);
+    
+    // Update baseline input to current finger's value
+    if (values[selectedFingerIndex]) {
+      setBaselineInput(values[selectedFingerIndex].toString());
+    }
   };
+
+  const handleManualBaseline = () => {
+    const newBaseline = parseInt(baselineInput, 10);
+    if (isNaN(newBaseline) || newBaseline < 0) {
+      alert('Please enter a valid positive number');
+      return;
+    }
+
+    const newMap = new Map(fingerDataMap);
+    const existingData = fingerDataMap.get(selectedFingerIndex);
+    
+    if (existingData) {
+      newMap.set(selectedFingerIndex, {
+        ...existingData,
+        baseline: newBaseline,
+        alert: Math.abs(existingData.current - newBaseline) > (newBaseline * ALERT_THRESHOLD_PERCENT / 100),
+      });
+      setFingerDataMap(newMap);
+      setIsEditingBaseline(false);
+    }
+  };
+
+  // Update baseline input when finger selection changes
+  useEffect(() => {
+    const fingerData = fingerDataMap.get(selectedFingerIndex);
+    if (fingerData) {
+      setBaselineInput(fingerData.baseline.toString());
+    }
+  }, [selectedFingerIndex]);
 
   const selectedFingerData = fingerDataMap.get(selectedFingerIndex);
   const showAlert = selectedFingerData?.alert ?? false;
@@ -127,34 +168,72 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
       return { x, y, value: point.value };
     });
 
-    // Calculate threshold line positions
+    // Calculate threshold line positions (only if within chart bounds)
     const baselineY = CHART_HEIGHT - (((baseline - minValue) / range) * CHART_HEIGHT);
     const upperThresholdY = CHART_HEIGHT - (((upperThreshold - minValue) / range) * CHART_HEIGHT);
     const lowerThresholdY = CHART_HEIGHT - (((lowerThreshold - minValue) / range) * CHART_HEIGHT);
 
+    // Check if thresholds are within visible range
+    const isUpperThresholdVisible = upperThreshold >= minValue && upperThreshold <= maxValue;
+    const isLowerThresholdVisible = lowerThreshold >= minValue && lowerThreshold <= maxValue;
+    const isBaselineVisible = baseline >= minValue && baseline <= maxValue;
+
     return (
       <View style={styles.chartContainer}>
-        {/* Threshold lines */}
-        <View style={[styles.thresholdLine, { top: upperThresholdY }]} />
-        <View style={[styles.thresholdLine, { top: lowerThresholdY }]} />
+        {/* Threshold lines - only render if within chart bounds */}
+        {isUpperThresholdVisible && upperThresholdY >= 0 && upperThresholdY <= CHART_HEIGHT && (
+          <View style={[styles.thresholdLine, { top: upperThresholdY }]} />
+        )}
+        {isLowerThresholdVisible && lowerThresholdY >= 0 && lowerThresholdY <= CHART_HEIGHT && (
+          <View style={[styles.thresholdLine, { top: lowerThresholdY }]} />
+        )}
         
-        {/* Baseline */}
-        <View style={[styles.baselineLine, { top: baselineY }]} />
+        {/* Baseline - only render if within chart bounds */}
+        {isBaselineVisible && baselineY >= 0 && baselineY <= CHART_HEIGHT && (
+          <View style={[styles.baselineLine, { top: baselineY }]} />
+        )}
         
-        {/* Data line */}
+        {/* Connecting lines between points */}
         {points.map((point, index) => {
           if (index === 0) return null;
           const prevPoint = points[index - 1];
           const isAlert = point.value > upperThreshold || point.value < lowerThreshold;
           
+          // Calculate line angle and length
+          const deltaX = point.x - prevPoint.x;
+          const deltaY = point.y - prevPoint.y;
+          const length = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+          const angle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
+          
           return (
             <View
-              key={index}
+              key={`line-${index}`}
+              style={[
+                styles.connectingLine,
+                {
+                  left: prevPoint.x,
+                  top: prevPoint.y,
+                  width: length,
+                  transform: [{ rotate: `${angle}deg` }],
+                  backgroundColor: isAlert ? '#FF5252' : '#4CAF50',
+                },
+              ]}
+            />
+          );
+        })}
+        
+        {/* Data points */}
+        {points.map((point, index) => {
+          const isAlert = point.value > upperThreshold || point.value < lowerThreshold;
+          
+          return (
+            <View
+              key={`point-${index}`}
               style={[
                 styles.dataPoint,
                 {
-                  left: point.x,
-                  top: point.y,
+                  left: point.x - 4,
+                  top: point.y - 4,
                   backgroundColor: isAlert ? '#FF5252' : '#4CAF50',
                 },
               ]}
@@ -298,6 +377,27 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
           </View>
         </View>
 
+        {/* Manual Baseline Input */}
+        <View style={styles.baselineCard}>
+          <Text style={styles.baselineTitle}>Manual Baseline for {FINGER_NAMES[selectedFingerIndex]}</Text>
+          <View style={styles.baselineInputRow}>
+            <TextInput
+              style={styles.baselineInput}
+              value={baselineInput}
+              onChangeText={setBaselineInput}
+              keyboardType="numeric"
+              placeholder="Enter baseline value"
+              placeholderTextColor="#999"
+            />
+            <TouchableOpacity style={styles.applyButton} onPress={handleManualBaseline}>
+              <Text style={styles.applyButtonText}>Apply</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.baselineHint}>
+            Enter a custom baseline ADC value for {FINGER_NAMES[selectedFingerIndex]} finger
+          </Text>
+        </View>
+
         {/* All Fingers Overview */}
         <View style={styles.sensorsCard}>
           <Text style={styles.sensorsTitle}>All Fingers Status</Text>
@@ -415,7 +515,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -425,7 +525,7 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   statusItem: {
     flex: 1,
@@ -443,8 +543,8 @@ const styles = StyleSheet.create({
   chartCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 14,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -452,15 +552,17 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   chartTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 4,
+    marginBottom: 2,
+    width: '100%', // Keep title full width
   },
   chartSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#999',
-    marginBottom: 12,
+    marginBottom: 10,
+    width: '100%', // Keep subtitle full width
   },
   chartContainer: {
     width: CHART_WIDTH,
@@ -469,6 +571,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     position: 'relative',
     marginBottom: 12,
+    overflow: 'hidden', // Prevent lines from going outside chart bounds
+    alignSelf: 'center', // Center the chart horizontally
   },
   emptyChart: {
     width: CHART_WIDTH,
@@ -477,6 +581,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
+    alignSelf: 'center', // Center the empty chart as well
   },
   emptyChartText: {
     fontSize: 14,
@@ -497,11 +602,21 @@ const styles = StyleSheet.create({
   },
   dataPoint: {
     position: 'absolute',
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginLeft: -3,
-    marginTop: -3,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  connectingLine: {
+    position: 'absolute',
+    height: 2,
+    transformOrigin: 'left center',
   },
   chartLabel: {
     position: 'absolute',
@@ -519,27 +634,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 10,
+    marginTop: 8,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   legendDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   legendText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#666',
   },
   metricsCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 14,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -547,32 +663,32 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   metricsTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   metricRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
   metricLabel: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#666',
   },
   metricValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#333',
   },
   sensorsCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    padding: 14,
+    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -580,10 +696,10 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   sensorsTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#333',
-    marginBottom: 12,
+    marginBottom: 10,
   },
   sensorsGrid: {
     flexDirection: 'row',
@@ -615,6 +731,55 @@ const styles = StyleSheet.create({
   sensorAlert: {
     fontSize: 12,
     marginTop: 2,
+  },
+  baselineCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  baselineTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  baselineInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  baselineInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#333',
+    backgroundColor: '#f9f9f9',
+  },
+  applyButton: {
+    backgroundColor: '#007AFF',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  applyButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  baselineHint: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
   },
   buttonContainer: {
     padding: 16,

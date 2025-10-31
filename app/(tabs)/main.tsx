@@ -121,11 +121,11 @@ export default function MainPage() {
   const renderFeatureDisplay = () => {
     switch (selectedFeature) {
       case 'bone-fracture':
-        return <BoneFractureDisplay values={binaryValues} />;
+        return <BoneFractureDisplay values={currentValues} />;
       case 'finger-rehab':
-        return <FingerRehabDisplay values={binaryValues} />;
+        return <FingerRehabDisplay values={currentValues} />;
       case 'parkinson':
-        return <ParkinsonMonitorDisplay values={binaryValues} />;
+        return <ParkinsonMonitorDisplay values={currentValues} />;
       case 'general':
       default:
         return <GeneralGestureDisplay values={binaryValues} onSimulate={simulateGesture} />;
