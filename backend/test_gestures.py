@@ -89,7 +89,7 @@ import sys
 import math
 
 # WebSocket URL
-BACKEND_WS_URL = "http://192.168.29.124:5000/"
+BACKEND_WS_URL = "http://10.235.85.120:5000/"
 
 # Dummy device_id — replace this with actual one registered in your DB
 DEVICE_ID = "b@gmail.com"
@@ -122,7 +122,8 @@ fracture_deviation = [0, 0, 8000, 0, 0]  # Middle finger has fracture (high devi
 # Parkinson's simulation state  
 parkinson_time = 0
 parkinson_tremor_freq = [4.5, 5.2, 3.8, 4.1, 5.0]  # Tremor frequencies for each finger (3-8 Hz range)
-parkinson_severity = 1  # 0.0 = normal, 1.0 = severe symptoms
+parkinson_severity = 1
+  # 0.0 = normal, 1.0 = severe symptoms
 
 def generate_normal_data():
     """Generate random ADC values for normal gesture recognition"""
@@ -159,7 +160,7 @@ def generate_fracture_data():
     values = []
     for i in range(5):
         # Normal variation around baseline
-        normal_variation = random.randint(-1000, 1000)
+        normal_variation = random.randint(-7000, 7000)
         
         # Add fracture deviation (consistent offset for fractured finger)
         fractured_value = fracture_baseline[i] + fracture_deviation[i] + normal_variation
@@ -247,7 +248,7 @@ try:
             interval = 0.33  # ~30 fps for smooth rehab data
         elif mode == 'fracture':
             raw_values = generate_fracture_data()
-            interval = 0.5  # 2 Hz for fracture monitoring
+            interval = 1.5  # 2 Hz for fracture monitoring
         elif mode == 'parkinson':
             raw_values = generate_parkinson_data()
             interval = 0.033  # ~30 Hz for tremor detection
