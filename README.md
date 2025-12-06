@@ -1,122 +1,93 @@
-# Sign Gesture Detection App
+# Gesture Recognition Project
 
-## Description
-This app helps you detect and record sign gestures. Navigate through the app using the buttons below.
+This project consists of a React Native frontend (Expo) and a Python Flask backend for gesture recognition and health monitoring.
 
 ## Prerequisites
-List of software and tools required to run the project:
-- Node.js
-- npm or yarn
-- Any other dependencies
 
-## Installation
-Steps to install the project:
+*   **Node.js** (for the frontend)
+*   **Python** (for the backend)
+*   **Expo Go App** (Version 2.32.20 or compatible) installed on your mobile device.
+
+## Installation & Setup
+
+### 1. Base Folder (Frontend Setup)
+
+Open a terminal in the root directory of the project and install the React Native dependencies:
+
 ```bash
-# Clone the repository
-git clone https://github.com/your-repo/project-name.git
-
-# Navigate to the project directory
-cd project-name
-
-# Install dependencies
 npm install
-# or
-yarn install
+```
+
+### 2. Backend Setup
+
+Navigate to the `backend` folder and install the required Python dependencies.
+
+First, ensure you have a `requirements.txt` file (created based on `app.py` and `test_gestures.py`). Then run:
+
+```bash
+cd backend
+pip install -r requirements.txt
 ```
 
 ## Running the Project
-Steps to run the project:
+
+Follow these steps in order to start the application.
+
+### Step 1: Start the Backend
+
+Open a terminal, navigate to the `backend` directory, and start the Flask server:
+
 ```bash
-# Start the development server
+cd backend
+python app.py
+```
+
+**Important:** After starting the backend, note the URL it is running on (e.g., `http://192.168.x.x:5000`). You will need this for the next step.
+
+### Step 2: Configure Frontend Connection
+
+1.  Open the file `src/constants/api.ts` in your code editor.
+2.  Update the backend URL in that file to match the URL you got from Step 1.
+
+### Step 3: Start the Frontend (Mobile App)
+
+Return to the root directory and start the Expo development server:
+
+```bash
 npm start
-# or
-yarn start
 ```
 
-## Accessing Each Page
-To navigate to different pages in the app:
-- **Home Page**: This is the initial screen that loads when the app starts.
-- **History Page**: Navigate to this page to view previously detected gestures.
-- **Main Page**: Navigate to this page to view incoming gestures.
-- **Profile Page**: Navigate to this page to view the user's profile.
+1.  Wait for the Metro Bundler to start.
+2.  You will see a QR code in the terminal.
+3.  Open the **Expo Go** app on your phone.
+4.  Scan the QR code to load the app.
 
-## Troubleshooting
-If nothing is working and no errors are shown, try the following steps:
-1. Ensure all dependencies are installed correctly:
-   ```bash
-   npm install
-   # or
-   yarn install
-   ```
+**Note:** Ensure your laptop and phone are connected to the **same Wi-Fi network** (non-proxy) for them to communicate.
 
-2. Check for any typos or errors in the `index.tsx`, `history.tsx`, `main.tsx`, and `profile.tsx` files.
+## Testing & Simulation
 
-3. Make sure the development server is running:
-   ```bash
-   npm start
-   # or
-   yarn start
-   ```
+### Simulating Raspberry Pi Data
 
-4. Open the browser's developer console to check for any runtime errors.
+You can simulate data coming from a Raspberry Pi by running the test script.
 
-5. Restart the development server:
-   ```bash
-   npm start
-   # or
-   yarn start
-   ```
-
-## Additional Information
-Any additional information or instructions.
-
-# Welcome to your Expo app 👋
-
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
-
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-    npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+1.  Open `backend/test_gestures.py`.
+2.  Update the `BACKEND_WS_URL` variable with the new backend URL you obtained in Step 1.
+3.  Run the script:
 
 ```bash
-npm run reset-project
+cd backend
+python test_gestures.py
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### Using Actual Raspberry Pi
 
-## Learn more
+If you are using the actual Raspberry Pi hardware:
 
-To learn more about developing your project with Expo, look at the following resources:
+1.  Open the code on your Raspberry Pi.
+2.  Update the backend URL in the Pi's code to match your running backend server.
+3.  Run the code on the Pi.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Troubleshooting
 
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+*   **Socket Connection Error:** If you encounter any socket connection errors, try stopping and restarting the code (both backend and the script/Pi code).
+*   **Network Issues:** Double-check that both devices are on the same network and that your firewall is not blocking the connection.

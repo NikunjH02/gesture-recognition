@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions, TextInput } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { FractureData, DataPoint } from '../types/healthMonitoring';
+import { API_URL } from '@/src/constants/api';
 
 interface BoneFractureDisplayProps {
   values: number[];
@@ -28,6 +29,8 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
   const [isCalibrating, setIsCalibrating] = useState<boolean>(true);
   const [baselineInput, setBaselineInput] = useState<string>('');
   const [isEditingBaseline, setIsEditingBaseline] = useState<boolean>(false);
+  const [monitoringHistory, setMonitoringHistory] = useState<any[]>([]);
+  const lastAlertTimeRef = useRef<Map<number, number>>(new Map());
 
   // Initialize baseline values when component mounts
   useEffect(() => {
@@ -63,6 +66,10 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
             const baseline = existing.baseline;
             const deviationPercent = Math.abs(((value - baseline) / baseline) * 100);
             const alert = deviationPercent > ALERT_THRESHOLD_PERCENT;
+            
+            if (alert) {
+              saveAlert(index, deviationPercent);
+            }
             
             // Add to history (keep last MAX_HISTORY_POINTS)
             const newHistory = [
@@ -252,6 +259,47 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
     );
   };
 
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch(`http://${API_URL}/get_monitoring_history?type=bone&limit=10`);
+      const data = await response.json();
+      setMonitoringHistory(data);
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
+
+  const saveAlert = async (fingerIndex: number, deviationPercent: number) => {
+    const now = Date.now();
+    const lastTime = lastAlertTimeRef.current.get(fingerIndex) || 0;
+    
+    // Prevent spamming: only send alert every 10 seconds per finger
+    if (now - lastTime < 10000) return;
+    
+    lastAlertTimeRef.current.set(fingerIndex, now);
+    
+    try {
+      await fetch(`http://${API_URL}/save_monitoring_data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          monitoring_type: 'bone',
+          overall_score: null,
+          finger_scores: deviationPercent,
+          finger_type: FINGER_NAMES[fingerIndex],
+          timestamp: now
+        })
+      });
+      fetchHistory(); // Refresh history
+    } catch (error) {
+      console.error("Error saving alert:", error);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -416,6 +464,24 @@ export default function BoneFractureDisplay({ values }: BoneFractureDisplayProps
               );
             })}
           </View>
+        </View>
+
+        {/* History Section */}
+        <View style={styles.historyCard}>
+          <Text style={styles.historyTitle}>Alert History</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.historyScroll}>
+            {monitoringHistory.length === 0 ? (
+              <Text style={styles.noHistoryText}>No alerts recorded</Text>
+            ) : (
+              monitoringHistory.map((item, index) => (
+                <View key={index} style={styles.historyItem}>
+                  <Text style={styles.historyFinger}>{item.finger_type}</Text>
+                  <Text style={styles.historyValue}>{Number(item.finger_scores).toFixed(1)}% Dev</Text>
+                  <Text style={styles.historyTime}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
+                </View>
+              ))
+            )}
+          </ScrollView>
         </View>
       </ScrollView>
 
@@ -800,5 +866,55 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  historyTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  historyScroll: {
+    flexDirection: 'row',
+  },
+  historyItem: {
+    backgroundColor: '#f5f5f5',
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 10,
+    minWidth: 100,
+    borderLeftWidth: 3,
+    borderLeftColor: '#FF5252',
+  },
+  historyFinger: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
+  },
+  historyValue: {
+    fontSize: 12,
+    color: '#FF5252',
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  historyTime: {
+    fontSize: 10,
+    color: '#999',
+  },
+  noHistoryText: {
+    color: '#999',
+    fontStyle: 'italic',
+    padding: 8,
   },
 });

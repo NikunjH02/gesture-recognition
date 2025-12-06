@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { StrokeData, FingerMetrics } from '../types/healthMonitoring';
+import { API_URL } from '@/src/constants/api';
 
 interface FingerRehabDisplayProps {
   values: number[];
@@ -40,6 +41,7 @@ export default function FingerRehabDisplay({ values, strokeData }: FingerRehabDi
   const [overallScore, setOverallScore] = useState<number>(0);
   const [overallStatus, setOverallStatus] = useState<string>('');
   const [alerts, setAlerts] = useState<RehabAlert[]>([]);
+  const [monitoringHistory, setMonitoringHistory] = useState<any[]>([]);
   
   const sessionStartTimeRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -362,6 +364,32 @@ export default function FingerRehabDisplay({ values, strokeData }: FingerRehabDi
     setOverallStatus(status);
     setAlerts(allAlerts);
 
+    // Save to backend
+    const saveRehabData = async () => {
+      try {
+        const fingerScoresMap: {[key: string]: number} = {};
+        Object.entries(results).forEach(([finger, data]: [string, any]) => {
+          fingerScoresMap[finger] = data.rehab_score;
+        });
+
+        await fetch(`http://${API_URL}/save_monitoring_data`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            monitoring_type: 'rehab',
+            overall_score: avgScore,
+            finger_scores: fingerScoresMap,
+            finger_type: 'All',
+            timestamp: Date.now()
+          })
+        });
+        fetchHistory();
+      } catch (error) {
+        console.error("Error saving rehab data:", error);
+      }
+    };
+    saveRehabData();
+
     Alert.alert(
       'Session Complete!',
       `Overall Score: ${avgScore.toFixed(1)} - ${status}\nCollected ${dataToAnalyze.Thumb.length} samples per finger`
@@ -392,6 +420,20 @@ export default function FingerRehabDisplay({ values, strokeData }: FingerRehabDi
     });
     Alert.alert('Session Cancelled', 'Rehabilitation session has been cancelled.');
   };
+
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch(`http://${API_URL}/get_monitoring_history?type=rehab&limit=10`);
+      const data = await response.json();
+      setMonitoringHistory(data);
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const getScoreColor = (score: number) => {
     if (score >= 75) return '#4CAF50';
@@ -534,9 +576,41 @@ export default function FingerRehabDisplay({ values, strokeData }: FingerRehabDi
       <View style={[styles.overallCard, { borderLeftColor: overallColor }]}>
         <Text style={styles.overallLabel}>Overall Rehab Score</Text>
         <Text style={[styles.overallScore, { color: overallColor }]}>
-          {displayScore.toFixed(1)}
+          {displayScore.toFixed(0)}
         </Text>
         <Text style={styles.overallStatus}>{displayStatus}</Text>
+      </View>
+
+      {/* History Section */}
+      <View style={styles.historyCard}>
+        <Text style={styles.historyTitle}>Session History</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.historyScroll}>
+          {monitoringHistory.length === 0 ? (
+            <Text style={styles.noHistoryText}>No sessions recorded</Text>
+          ) : (
+            monitoringHistory.map((item, index) => (
+              <View key={index} style={styles.historyItem}>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyScore}>{Number(item.overall_score).toFixed(0)}</Text>
+                  <Text style={styles.historyLabel}>Overall</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.fingerScoresGrid}>
+                  {item.finger_scores && typeof item.finger_scores === 'object' ? (
+                    Object.entries(item.finger_scores).map(([finger, score]: [string, any]) => (
+                      <Text key={finger} style={styles.fingerScoreSmall}>
+                        {finger.substring(0, 1)}: {Number(score).toFixed(0)}
+                      </Text>
+                    ))
+                  ) : null}
+                </View>
+                <Text style={styles.historyTime}>
+                  {new Date(item.timestamp).toLocaleDateString()} {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            ))
+          )}
+        </ScrollView>
       </View>
 
       <ScrollView style={styles.content}>
@@ -925,6 +999,75 @@ const styles = StyleSheet.create({
   alertMessage: {
     fontSize: 14,
     color: '#333',
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderRadius: 12,
+    padding: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  historyTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 10,
+  },
+  historyScroll: {
+    flexDirection: 'row',
+  },
+  historyItem: {
+    backgroundColor: '#f5f5f5',
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 10,
+    minWidth: 120,
+  },
+  historyHeader: {
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  historyDivider: {
+    height: 1,
+    backgroundColor: '#ddd',
+    width: '100%',
+    marginVertical: 4,
+  },
+  fingerScoresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  fingerScoreSmall: {
+    fontSize: 10,
+    color: '#555',
+    fontWeight: '500',
+  },
+  historyScore: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#007AFF',
+  },
+  historyLabel: {
+    fontSize: 10,
+    color: '#666',
+  },
+  historyTime: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 4,
+  },
+  noHistoryText: {
+    color: '#999',
+    fontStyle: 'italic',
+    padding: 8,
   },
 });
 

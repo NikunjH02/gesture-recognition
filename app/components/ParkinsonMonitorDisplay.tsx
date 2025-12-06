@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Dimensions } from 'react-native';
 import { IconSymbol } from '@/components/ui/IconSymbol';
 import { ParkinsonData, FingerMetrics } from '../types/healthMonitoring';
+import { API_URL } from '@/src/constants/api';
 
 interface ParkinsonMonitorDisplayProps {
   values: number[];
@@ -66,6 +67,7 @@ export default function ParkinsonMonitorDisplay({ values, parkinsonData }: Parki
   const [overallAssessment, setOverallAssessment] = useState<string>('');
   const [severityLevel, setSeverityLevel] = useState<'none' | 'mild' | 'moderate' | 'severe'>('none');
   const [alerts, setAlerts] = useState<ParkinsonAlert[]>([]);
+  const [monitoringHistory, setMonitoringHistory] = useState<any[]>([]);
   
   const sessionStartTimeRef = useRef<number | null>(null);
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -76,6 +78,22 @@ export default function ParkinsonMonitorDisplay({ values, parkinsonData }: Parki
     Ring: [],
     Pinky: []
   });
+
+  // Fetch monitoring history from server
+  const fetchHistory = async () => {
+    try {
+      const response = await fetch(`http://${API_URL}/get_monitoring_history?type=parkinson&limit=10`);
+      const data = await response.json();
+      setMonitoringHistory(data);
+    } catch (error) {
+      console.error("Error fetching history:", error);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   // Collect data during active session (like FingerRehabDisplay)
   useEffect(() => {
@@ -388,6 +406,32 @@ export default function ParkinsonMonitorDisplay({ values, parkinsonData }: Parki
       setSeverityLevel('severe');
       setOverallAssessment('Significant symptoms detected. Immediate medical attention advised.');
     }
+
+    // Save to backend
+    const saveParkinsonData = async () => {
+      try {
+        const fingerScoresMap: {[key: string]: number} = {};
+        results.forEach((metrics, finger) => {
+          fingerScoresMap[finger] = metrics.overallScore;
+        });
+
+        await fetch(`http://${API_URL}/save_monitoring_data`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            monitoring_type: 'parkinson',
+            overall_score: avgScore,
+            finger_scores: fingerScoresMap,
+            finger_type: 'All',
+            timestamp: Date.now()
+          })
+        });
+        fetchHistory();
+      } catch (error) {
+        console.error("Error saving parkinson data:", error);
+      }
+    };
+    saveParkinsonData();
   };
 
   const selectedFingerName = FINGER_NAMES_FULL[selectedFingerIndex];
@@ -445,6 +489,38 @@ export default function ParkinsonMonitorDisplay({ values, parkinsonData }: Parki
             <Text style={styles.restartButtonText}>Restart Assessment</Text>
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* History Section */}
+      <View style={styles.historyCard}>
+        <Text style={styles.historyTitle}>Assessment History</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.historyScroll}>
+          {monitoringHistory.length === 0 ? (
+            <Text style={styles.noHistoryText}>No assessments recorded</Text>
+          ) : (
+            monitoringHistory.map((item, index) => (
+              <View key={index} style={styles.historyItem}>
+                <View style={styles.historyHeader}>
+                  <Text style={styles.historyScore}>{(Number(item.overall_score) * 100).toFixed(0)}%</Text>
+                  <Text style={styles.historyLabel}>Severity</Text>
+                </View>
+                <View style={styles.historyDivider} />
+                <View style={styles.fingerScoresGrid}>
+                  {item.finger_scores && typeof item.finger_scores === 'object' ? (
+                    Object.entries(item.finger_scores).map(([finger, score]: [string, any]) => (
+                      <Text key={finger} style={styles.fingerScoreSmall}>
+                        {finger.substring(0, 1)}: {(Number(score) * 100).toFixed(0)}
+                      </Text>
+                    ))
+                  ) : null}
+                </View>
+                <Text style={styles.historyTime}>
+                  {new Date(item.timestamp).toLocaleDateString()} {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </Text>
+              </View>
+            ))
+          )}
+        </ScrollView>
       </View>
 
       {/* Results Display */}
@@ -1281,5 +1357,73 @@ const styles = StyleSheet.create({
     color: '#555',
     fontFamily: 'monospace',
     marginBottom: 2,
+  },
+  historyCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  historyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginBottom: 12,
+  },
+  historyScroll: {
+    flexDirection: 'row',
+  },
+  historyItem: {
+    backgroundColor: '#f5f5f5',
+    padding: 10,
+    borderRadius: 8,
+    marginRight: 10,
+    minWidth: 120,
+  },
+  historyHeader: {
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  historyDivider: {
+    height: 1,
+    backgroundColor: '#ddd',
+    width: '100%',
+    marginVertical: 4,
+  },
+  fingerScoresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 4,
+    marginBottom: 4,
+  },
+  fingerScoreSmall: {
+    fontSize: 10,
+    color: '#555',
+    fontWeight: '500',
+  },
+  historyScore: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FF6B6B',
+  },
+  historyLabel: {
+    fontSize: 10,
+    color: '#666',
+  },
+  historyTime: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 4,
+  },
+  noHistoryText: {
+    color: '#999',
+    fontStyle: 'italic',
+    padding: 8,
   },
 });

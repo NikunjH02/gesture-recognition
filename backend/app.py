@@ -29,6 +29,7 @@ db = client["sensor_data"]
 classification_collection = db["classified_results"]
 user_collection = db["users"]
 messages_collection = db["user_messages"]
+monitoring_collection = db["monitoring_history"]
 
 # Socket connection tracking
 # Map socket_id to user_id
@@ -315,6 +316,56 @@ def update_user_messages():
         return jsonify({"success": True, "message": "Messages updated successfully"})
     else:
         return jsonify({"success": False, "message": "No changes made to messages"}), 400
+
+# Routes for monitoring data
+@app.route('/save_monitoring_data', methods=['POST'])
+def save_monitoring_data():
+    data = request.json
+    
+    # Extract fields
+    monitoring_type = data.get('monitoring_type')
+    overall_score = data.get('overall_score')
+    finger_scores = data.get('finger_scores') # Can be a map or single value
+    finger_type = data.get('finger_type')
+    timestamp = data.get('timestamp')
+    user_id = data.get('user_id') # Optional
+    
+    if not monitoring_type or not timestamp:
+         return jsonify({"success": False, "message": "Missing required fields"}), 400
+
+    record = {
+        "monitoring_type": monitoring_type,
+        "overall_score": overall_score,
+        "finger_scores": finger_scores,
+        "finger_type": finger_type,
+        "timestamp": timestamp,
+        "user_id": user_id,
+        "created_at": time.time()
+    }
+    
+    monitoring_collection.insert_one(record)
+    
+    return jsonify({"success": True, "message": "Data saved successfully"}), 201
+
+@app.route('/get_monitoring_history', methods=['GET'])
+def get_monitoring_history():
+    monitoring_type = request.args.get('type')
+    user_id = request.args.get('user_id')
+    limit = int(request.args.get('limit', 20))
+    
+    query = {}
+    if monitoring_type:
+        query['monitoring_type'] = monitoring_type
+    if user_id:
+        query['user_id'] = user_id
+        
+    history = list(monitoring_collection.find(query).sort("timestamp", -1).limit(limit))
+    
+    # Convert ObjectId to string
+    for item in history:
+        item['_id'] = str(item['_id'])
+        
+    return jsonify(history), 200
 
 # WebSocket: Raspberry Pi sends ADC data
 @socketio.on('adc_data')

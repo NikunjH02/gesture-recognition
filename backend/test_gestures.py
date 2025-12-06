@@ -89,7 +89,7 @@ import sys
 import math
 
 # WebSocket URL
-BACKEND_WS_URL = "http://10.235.85.120:5000/"
+BACKEND_WS_URL = "http://10.197.108.120:5000"
 
 # Dummy device_id — replace this with actual one registered in your DB
 DEVICE_ID = "b@gmail.com"

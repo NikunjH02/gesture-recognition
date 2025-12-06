@@ -1,0 +1,10 @@
+Flask
+Flask-SocketIO
+Flask-Cors
+Flask-Bcrypt
+pandas
+pymongo
+numpy
+python-dotenv
+python-socketio
+scikit-learn
