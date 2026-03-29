@@ -87,9 +87,12 @@ import random
 import socketio
 import sys
 import math
+import json
+import urllib.request
+import urllib.error
 
 # WebSocket URL
-BACKEND_WS_URL = "http://10.197.108.120:5000"
+BACKEND_WS_URL = "http://192.168.0.140:5000"
 
 # Dummy device_id — replace this with actual one registered in your DB
 DEVICE_ID = "b@gmail.com"
@@ -100,9 +103,10 @@ print("1. normal - Random gesture data")
 print("2. rehab - Simulated hand opening/closing for rehabilitation")
 print("3. fracture - Simulated bone fracture with baseline deviation")
 print("4. parkinson - Simulated Parkinson's symptoms (tremor, rigidity, bradykinesia)")
-mode = input("Enter mode (normal/rehab/fracture/parkinson): ").strip().lower()
+print("5. vitals - Simulated GSR, pulse, ST, ECG streams")
+mode = input("Enter mode (normal/rehab/fracture/parkinson/vitals): ").strip().lower()
 
-if mode not in ['normal', 'rehab', 'fracture', 'parkinson']:
+if mode not in ['normal', 'rehab', 'fracture', 'parkinson', 'vitals']:
     print("Invalid mode. Defaulting to 'normal'")
     mode = 'normal'
 
@@ -124,6 +128,12 @@ parkinson_time = 0
 parkinson_tremor_freq = [4.5, 5.2, 3.8, 4.1, 5.0]  # Tremor frequencies for each finger (3-8 Hz range)
 parkinson_severity = 1
   # 0.0 = normal, 1.0 = severe symptoms
+
+# Vitals simulation stats (based on sample pulse data and ST preview)
+PULSE_MEAN = 90.65696465696466
+PULSE_STD = 1.736485786433266
+ST_MEAN = -37.49284333333333
+ST_STD = 0.439977457419001
 
 def generate_normal_data():
     """Generate random ADC values for normal gesture recognition"""
@@ -215,6 +225,39 @@ def generate_parkinson_data():
     
     return values
 
+def generate_vitals_data():
+    """Generate simulated vitals data (GSR, pulse, ST, ECG)."""
+    pulse = random.gauss(PULSE_MEAN, PULSE_STD)
+    st = random.gauss(ST_MEAN, ST_STD)
+    gsr = random.uniform(0.2, 6.0)
+    ecg = random.uniform(-1.2, 1.2)
+
+    return {
+        "pulse": round(pulse, 2),
+        "st": round(st, 3),
+        "gsr": round(gsr, 3),
+        "ecg": round(ecg, 3),
+    }
+
+def post_vitals_data(payload):
+    """Send vitals payload to backend /vitals_data endpoint."""
+    url = BACKEND_WS_URL.rstrip('/') + '/vitals_data'
+    body = json.dumps(payload).encode('utf-8')
+    request = urllib.request.Request(
+        url,
+        data=body,
+        headers={'Content-Type': 'application/json'},
+        method='POST'
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=5) as response:
+            return response.status, response.read()
+    except urllib.error.HTTPError as error:
+        return error.code, error.read()
+    except Exception as error:
+        return None, str(error).encode('utf-8')
+
 # Connection event handlers
 @sio.event
 def connect():
@@ -233,7 +276,8 @@ def disconnect():
 # Try to connect to backend
 try:
     print(f"Attempting to connect to {BACKEND_WS_URL}...")
-    sio.connect(BACKEND_WS_URL)
+    if mode != 'vitals':
+        sio.connect(BACKEND_WS_URL)
 except Exception as e:
     print(f"Connection error: {e}")
     sys.exit(1)
@@ -243,7 +287,24 @@ try:
     iteration = 0
     while True:
         # Generate data based on mode
-        if mode == 'rehab':
+        if mode == 'vitals':
+            vitals_payload = generate_vitals_data()
+            payload = {
+                "timestamp": time.time(),
+                "user_id": DEVICE_ID,
+                **vitals_payload,
+            }
+            status, response_body = post_vitals_data(payload)
+            response_text = response_body.decode('utf-8', errors='replace') if response_body else ''
+            if status is None:
+                print(f"[vitals] Error sending data: {response_text}")
+            elif status >= 400:
+                print(f"[vitals] Server error {status}: {response_text}")
+                print(f"[vitals] Payload: {payload}")
+            else:
+                print(f"[vitals] Sent {vitals_payload} (status {status})")
+            interval = 2
+        elif mode == 'rehab':
             raw_values = generate_rehab_data()
             interval = 0.33  # ~30 fps for smooth rehab data
         elif mode == 'fracture':
@@ -255,37 +316,38 @@ try:
         else:  # normal mode
             raw_values = generate_normal_data()
             interval = 4  # 4 seconds for normal mode
-        
-        data = {
-            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "device_id": DEVICE_ID,
-            "channels": [
-                {
-                    "channel": i,
-                    "raw": raw_values[i],
-                    "voltage": round(raw_values[i] / 65535 * 3.3, 3)
-                }
-                for i in range(5)
-            ]
-        }
 
-        try:
-            sio.emit("adc_data", data)
-            
-            # Print status based on mode
-            if mode in ['rehab', 'parkinson']:
-                # Print less frequently for high-frequency modes
-                if iteration % 30 == 0:  # Every ~1 second
-                    print(f"[{mode}] Sample values: {[v for v in raw_values]}")
-            elif mode == 'fracture':
-                if iteration % 10 == 0:  # Every ~5 seconds
-                    print(f"[{mode}] Fracture simulation - Middle finger deviation: {fracture_deviation[2]}")
-                    print(f"[{mode}] Values: {raw_values}")
-            else:  # normal
-                print(f"[{mode}] Sent data at {data['timestamp']} for device {DEVICE_ID}")
+        if mode != 'vitals':
+            data = {
+                "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                "device_id": DEVICE_ID,
+                "channels": [
+                    {
+                        "channel": i,
+                        "raw": raw_values[i],
+                        "voltage": round(raw_values[i] / 65535 * 3.3, 3)
+                    }
+                    for i in range(5)
+                ]
+            }
+
+            try:
+                sio.emit("adc_data", data)
                 
-        except Exception as e:
-            print(f"Error sending data: {e}")
+                # Print status based on mode
+                if mode in ['rehab', 'parkinson']:
+                    # Print less frequently for high-frequency modes
+                    if iteration % 30 == 0:  # Every ~1 second
+                        print(f"[{mode}] Sample values: {[v for v in raw_values]}")
+                elif mode == 'fracture':
+                    if iteration % 10 == 0:  # Every ~5 seconds
+                        print(f"[{mode}] Fracture simulation - Middle finger deviation: {fracture_deviation[2]}")
+                        print(f"[{mode}] Values: {raw_values}")
+                else:  # normal
+                    print(f"[{mode}] Sent data at {data['timestamp']} for device {DEVICE_ID}")
+                    
+            except Exception as e:
+                print(f"Error sending data: {e}")
         
         iteration += 1
         time.sleep(interval)
@@ -293,4 +355,5 @@ except KeyboardInterrupt:
     print("\nProgram interrupted by user")
 finally:
     print("Disconnecting...")
-    sio.disconnect()
+    if mode != 'vitals':
+        sio.disconnect()

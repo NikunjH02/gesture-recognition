@@ -11,8 +11,9 @@ import BoneFractureDisplay from '../components/BoneFractureDisplay';
 import FingerRehabDisplay from '../components/FingerRehabDisplay';
 import ParkinsonMonitorDisplay from '../components/ParkinsonMonitorDisplay';
 import GeneralGestureDisplay from '../components/GeneralGestureDisplay';
+import VitalsMonitoringDisplay from '../components/VitalsMonitoringDisplay';
 
-type FeatureType = 'general' | 'bone-fracture' | 'finger-rehab' | 'parkinson';
+type FeatureType = 'general' | 'bone-fracture' | 'finger-rehab' | 'parkinson' | 'vitals';
 
 export default function MainPage() {
   const [currentValues, setCurrentValues] = useState<number[]>([0, 0, 0, 0, 0]);
@@ -126,6 +127,8 @@ export default function MainPage() {
         return <FingerRehabDisplay values={currentValues} />;
       case 'parkinson':
         return <ParkinsonMonitorDisplay values={currentValues} />;
+      case 'vitals':
+        return <VitalsMonitoringDisplay />;
       case 'general':
       default:
         return <GeneralGestureDisplay values={binaryValues} onSimulate={simulateGesture} />;
@@ -184,22 +187,34 @@ export default function MainPage() {
                   Parkinson's
                 </Text>
               </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.featureButton, selectedFeature === 'vitals' && styles.featureButtonActive]}
+                onPress={() => setSelectedFeature('vitals')}
+              >
+                <IconSymbol size={20} name="heart.fill" color={selectedFeature === 'vitals' ? '#fff' : '#D32F2F'} />
+                <Text style={[styles.featureButtonText, selectedFeature === 'vitals' && styles.featureButtonTextActive]}>
+                  Vitals
+                </Text>
+              </TouchableOpacity>
             </ScrollView>
           </View>
 
-          <View style={styles.detectionInfo}>
-            <Text style={styles.detectionTitle}>Current Values:</Text>
-            <View style={styles.valuesContainer}>
-              {currentValues.map((value, index) => (
-                <View key={index} style={styles.valueItem}>
-                  <Text style={styles.valueLabel}>Value {index + 1}</Text>
-                  <Text style={styles.valueText}>{value}</Text>
-                </View>
-              ))}
+          {selectedFeature !== 'vitals' && (
+            <View style={styles.detectionInfo}>
+              <Text style={styles.detectionTitle}>Current Values:</Text>
+              <View style={styles.valuesContainer}>
+                {currentValues.map((value, index) => (
+                  <View key={index} style={styles.valueItem}>
+                    <Text style={styles.valueLabel}>Value {index + 1}</Text>
+                    <Text style={styles.valueText}>{value}</Text>
+                  </View>
+                ))}
+              </View>
+              <Text style={styles.detectionTitle}>Message:</Text>
+              <Text style={styles.detectedGesture}>{backendMessage[currentMessage] || currentMessage}</Text>
             </View>
-            <Text style={styles.detectionTitle}>Message:</Text>
-            <Text style={styles.detectedGesture}>{backendMessage[currentMessage] || currentMessage}</Text>
-          </View>
+          )}
 
           {/* Feature-specific Display */}
           {renderFeatureDisplay()}

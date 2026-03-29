@@ -367,6 +367,41 @@ def get_monitoring_history():
         
     return jsonify(history), 200
 
+@app.route('/vitals_data', methods=['POST'])
+def receive_vitals_data():
+    data = request.json or {}
+    gsr = data.get('gsr')
+    pulse = data.get('pulse')
+    st = data.get('st')
+    ecg = data.get('ecg')
+    user_id = data.get('user_id')
+    timestamp = data.get('timestamp') or time.time()
+
+    if gsr is None and pulse is None and st is None and ecg is None:
+        return jsonify({"success": False, "message": "At least one vitals field is required"}), 400
+
+    payload = {
+        "timestamp": timestamp,
+        "gsr": gsr,
+        "pulse": pulse,
+        "st": st,
+        "ecg": ecg,
+        "user_id": user_id,
+    }
+
+    monitoring_collection.insert_one({
+        "monitoring_type": "vitals",
+        "overall_score": None,
+        "finger_scores": payload,
+        "finger_type": "vitals",
+        "timestamp": timestamp,
+        "user_id": user_id,
+        "created_at": time.time(),
+    })
+
+    socketio.emit('vitals_data', payload)
+    return jsonify({"success": True}), 200
+
 # WebSocket: Raspberry Pi sends ADC data
 @socketio.on('adc_data')
 def handle_adc_data(data):

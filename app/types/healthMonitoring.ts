@@ -1,6 +1,6 @@
 // Types for health monitoring use cases
 
-export type UseCaseType = 'STROKE' | 'FRACT' | 'PARK' | 'ARTH' | 'GENERAL';
+export type UseCaseType = 'STROKE' | 'FRACT' | 'PARK' | 'ARTH' | 'GENERAL' | 'VITALS';
 
 export interface FingerMetrics {
   mean: number;
@@ -38,10 +38,36 @@ export interface ArthritisData {
   [fingerName: string]: FingerMetrics;
 }
 
+export interface VitalsReading {
+  timestamp?: number;
+  gsr?: number;
+  pulse?: number;
+  st?: number;
+  ecg?: number;
+  user_id?: string;
+}
+
+export interface VitalsThreshold {
+  label: string;
+  unit: string;
+  warnMin: number;
+  warnMax: number;
+  hardMin: number;
+  hardMax: number;
+  note?: string;
+}
+
+export interface VitalsAlert {
+  sensor: string;
+  level: 'warning' | 'danger';
+  message: string;
+  timestamp: number;
+}
+
 export interface HealthMonitoringMessage {
   use_case: UseCaseType;
   timestamp: number;
-  data: StrokeData | FractureData | ParkinsonData | ArthritisData;
+  data: StrokeData | FractureData | ParkinsonData | ArthritisData | VitalsReading;
 }
 
 // Historical data for charting
