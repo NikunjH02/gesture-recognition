@@ -29,6 +29,9 @@ cd backend
 pip install -r requirements.txt
 ```
 
+Also create a .env file and setup your MONGODB_URI for database setup.
+
+
 ## Running the Project
 
 Follow these steps in order to start the application.
